@@ -22,12 +22,17 @@ yarn && yarn dev
 
 ## Setup
 
-1. Install the Cosmodal package in your React project
+1. Install the Cosmodal package in your React project along with its `@cosmjs/*`
+   peer dependencies.
 
 ```sh
-npm install --save @noahsaso/cosmodal
+npm install --save @noahsaso/cosmodal @cosmjs/cosmwasm-stargate @cosmjs/crypto \
+@cosmjs/encoding @cosmjs/proto-signing @cosmjs/stargate @keplr-wallet/common \
+@keplr-wallet/cosmos @keplr-wallet/provider @keplr-wallet/stores @keplr-wallet/types
 # OR
-yarn add @noahsaso/cosmodal
+yarn add @noahsaso/cosmodal @cosmjs/cosmwasm-stargate @cosmjs/crypto \
+@cosmjs/encoding @cosmjs/proto-signing @cosmjs/stargate @keplr-wallet/common \
+@keplr-wallet/cosmos @keplr-wallet/provider @keplr-wallet/stores @keplr-wallet/types
 ```
 
 2. Import `WalletManagerProvider` and wrap it around your whole app. Only
