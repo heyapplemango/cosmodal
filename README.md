@@ -50,7 +50,11 @@ import {
 const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
   <WalletManagerProvider
     defaultChainId={ChainInfoID.Juno1}
-    enabledWalletTypes={[WalletType.Keplr, WalletType.WalletConnectKeplr]}
+    enabledWalletTypes={[
+      WalletType.Leap,
+      WalletType.Keplr,
+      WalletType.WalletConnectKeplr,
+    ]}
     walletConnectClientMeta={{
       name: "CosmodalExampleDAPP",
       description: "A dapp using the cosmodal library.",
@@ -190,6 +194,7 @@ interface IClientMeta {
 type WalletClient = Keplr | KeplrWalletConnectV1
 
 enum WalletType {
+  Leap = "leap",
   Keplr = "keplr",
   WalletConnectKeplr = "walletconnect_keplr",
 }
