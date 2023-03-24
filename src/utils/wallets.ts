@@ -19,7 +19,8 @@ export const KeplrWallet: Wallet = {
   type: WalletType.Keplr,
   name: "Keplr Wallet",
   description: "Keplr Chrome Extension",
-  imageUrl: "/keplr-wallet-extension.png",
+  imageUrl:
+    "https://bafkreifdzoeavalj5ger3bigyapou5vgcpbcflupowqrju5ykxubcbyjlq.ipfs.nftstorage.link",
   getClient: async () =>
     (await import("@keplr-wallet/stores")).getKeplrFromWindow(),
   getOfflineSignerFunction: (client) =>
@@ -32,7 +33,8 @@ export const WalletConnectKeplrWallet: Wallet = {
   type: WalletType.WalletConnectKeplr,
   name: "WalletConnect",
   description: "Keplr Mobile",
-  imageUrl: "/walletconnect-keplr.png",
+  imageUrl:
+    "https://bafkreibkroyj2jbsyhiybw44hcsljfftjwa2iyk32ncauk5sygz2lc5hyi.ipfs.nftstorage.link",
   getClient: async (chainInfo, walletConnect) => {
     if (walletConnect?.connected) {
       return new (await import("../connectors")).KeplrWalletConnectV1(
@@ -49,4 +51,8 @@ export const WalletConnectKeplrWallet: Wallet = {
   windowKeystoreRefreshEvent: "keplr_keystorechange",
 }
 
-export const Wallets: Wallet[] = [KeplrWallet, WalletConnectKeplrWallet]
+export const Wallets: Wallet[] = [
+  KeplrWallet,
+  WalletConnectKeplrWallet,
+  LeapWallet,
+]

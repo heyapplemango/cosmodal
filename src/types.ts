@@ -197,3 +197,9 @@ export enum ChainInfoID {
   Kava_2222_10 = "kava_2222-10",
   Genesis_29_2 = "genesis_29-2",
 }
+
+declare global {
+  interface Window {
+    leap?: Keplr
+  }
+}
