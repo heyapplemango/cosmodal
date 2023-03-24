@@ -17,6 +17,7 @@ export interface IKeplrWalletConnectV1 extends Keplr {
 export type WalletClient = Keplr | IKeplrWalletConnectV1
 
 export enum WalletType {
+  Leap = "leap",
   Keplr = "keplr",
   WalletConnectKeplr = "walletconnect_keplr",
 }
@@ -195,4 +196,10 @@ export enum ChainInfoID {
   Titan1 = "titan-1",
   Kava_2222_10 = "kava_2222-10",
   Genesis_29_2 = "genesis_29-2",
+}
+
+declare global {
+  interface Window {
+    leap?: Keplr
+  }
 }

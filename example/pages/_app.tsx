@@ -19,15 +19,23 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
       url: "https://noahsaso-cosmodal.vercel.app",
       icons: ["https://moonphase.is/image.svg"],
     }}
-    enabledWalletTypes={[WalletType.Keplr, WalletType.WalletConnectKeplr]}
+    enabledWalletTypes={[
+      WalletType.Leap,
+      WalletType.Keplr,
+      WalletType.WalletConnectKeplr,
+    ]}
     renderLoader={() => <p>Loading...</p>}
     localStorageKey={LOCAL_STORAGE_KEY}
     defaultChainId={ChainInfoID.Juno1}
     getSigningCosmWasmClientOptions={(chainInfo) => ({
-      gasPrice: GasPrice.fromString("0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom),
+      gasPrice: GasPrice.fromString(
+        "0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom
+      ),
     })}
     getSigningStargateClientOptions={(chainInfo) => ({
-      gasPrice: GasPrice.fromString("0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom),
+      gasPrice: GasPrice.fromString(
+        "0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom
+      ),
     })}
     // Choose a different RPC node for the desired chain.
     // chainInfoOverrides={[
