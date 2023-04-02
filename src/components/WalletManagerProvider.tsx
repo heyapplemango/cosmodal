@@ -174,6 +174,14 @@ export const WalletManagerProvider: FunctionComponent<
       setWalletConnect(undefined)
       if (walletConnect?.connected && !dontKillWalletConnect) {
         await walletConnect.killSession()
+        // Remove session from localStorage since it tries to use the same
+        // session as last time on future attempts. When the user manually
+        // disconnects, we want to clear this state in case something is wrong
+        // with the session or they are trying to change their wallet and it
+        // won't detect the change.
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("walletconnect")
+        }
       }
     },
     [localStorageKey, walletConnect]
