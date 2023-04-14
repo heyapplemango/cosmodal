@@ -26,11 +26,11 @@ yarn && yarn dev
    peer dependencies.
 
 ```sh
-npm install --save @noahsaso/cosmodal @cosmjs/cosmwasm-stargate @cosmjs/crypto \
+npm install --save @noahsaso/cosmodal @cosmjs/amino @cosmjs/cosmwasm-stargate @cosmjs/crypto \
 @cosmjs/encoding @cosmjs/proto-signing @cosmjs/stargate @keplr-wallet/common \
 @keplr-wallet/cosmos @keplr-wallet/provider @keplr-wallet/stores @keplr-wallet/types
 # OR
-yarn add @noahsaso/cosmodal @cosmjs/cosmwasm-stargate @cosmjs/crypto \
+yarn add @noahsaso/cosmodal @cosmjs/amino @cosmjs/cosmwasm-stargate @cosmjs/crypto \
 @cosmjs/encoding @cosmjs/proto-signing @cosmjs/stargate @keplr-wallet/common \
 @keplr-wallet/cosmos @keplr-wallet/provider @keplr-wallet/stores @keplr-wallet/types
 ```
@@ -113,6 +113,7 @@ This component takes the following properties:
 | Property                          | Type                                                             | Required | Description                                                                                                                                                                                                                     |
 | --------------------------------- | ---------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabledWalletTypes`              | `WalletType[]`                                                   | &#x2611; | Wallet types available for connection.                                                                                                                                                                                          |
+| `walletOptions`                   | `Partial<Record<WalletType, Record<string, any>>> \| undefined`  | &#x2611; | Optional wallet options to be passed to wallet clients.                                                                                                                                                                         |
 | `defaultChainId`                  | `string`                                                         | &#x2611; | Chain ID to initially connect to and selected by default if nothing is passed to the hook. Must be present in one of the objects in `chainInfoList`.                                                                            |
 | `chainInfoOverrides`              | `ChainInfoOverrides \| undefined`                                |          | List or getter of additional or replacement ChainInfo objects. These will take precedent over internal definitions by comparing `chainId`.                                                                                      |
 | `classNames`                      | `ModalClassNames`                                                |          | Class names applied to various components for custom theming.                                                                                                                                                                   |

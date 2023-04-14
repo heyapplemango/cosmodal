@@ -1,6 +1,6 @@
 {
   "name": "@noahsaso/cosmodal",
-  "version": "0.8.11",
+  "version": "0.9.0-alpha",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/NoahSaso/cosmodal.git"
@@ -33,6 +33,8 @@
   "dependencies": {
     "@walletconnect/client": "^1.7.8",
     "@walletconnect/utils": "^1.7.8",
+    "@web3auth/base": "^5.1.0",
+    "@web3auth/modal": "^5.1.1",
     "core-js": "3",
     "qrcode.react": "^3.0.2",
     "react-modal": "^3.15.1",
@@ -46,17 +48,18 @@
     "@babel/preset-env": "^7.16.11",
     "@babel/preset-typescript": "^7.17.12",
     "@babel/register": "^7.17.7",
-    "@cosmjs/launchpad": "0.27.1",
+    "@cosmjs/amino": "^0.30.1",
     "@cosmjs/cosmwasm-stargate": "^0.30.1",
     "@cosmjs/crypto": "^0.30.1",
     "@cosmjs/encoding": "^0.30.1",
+    "@cosmjs/launchpad": "0.27.1",
     "@cosmjs/proto-signing": "^0.30.1",
     "@cosmjs/stargate": "^0.30.1",
-    "@keplr-wallet/types": "^0.11.49",
     "@keplr-wallet/common": "^0.11.49",
     "@keplr-wallet/cosmos": "^0.11.49",
     "@keplr-wallet/provider": "^0.11.49",
     "@keplr-wallet/stores": "^0.11.49",
+    "@keplr-wallet/types": "^0.11.49",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
     "@types/jest": "^28.1.3",
@@ -99,6 +102,7 @@
     "webpack-cli": "^4.9.2"
   },
   "peerDependencies": {
+    "@cosmjs/amino": "^0.28 || ^0.29 || ^0.30",
     "@cosmjs/cosmwasm-stargate": "^0.28 || ^0.29 || ^0.30",
     "@cosmjs/crypto": "^0.28 || ^0.29 || ^0.30",
     "@cosmjs/encoding": "^0.28 || ^0.29 || ^0.30",

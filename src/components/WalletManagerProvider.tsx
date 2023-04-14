@@ -12,7 +12,6 @@ import React, {
   useRef,
   useState,
 } from "react"
-import { KeplrExtensionWallet } from "src/wallets/keplr/extension"
 
 import {
   ChainInfoOverrides,
@@ -26,6 +25,7 @@ import {
 } from "../types"
 import { getChainInfo, getConnectedWalletInfo } from "../utils"
 import { WALLETS } from "../wallets"
+import { KeplrExtensionWallet } from "../wallets/keplr/extension"
 import { KeplrWalletConnectV1 } from "../wallets/keplr/mobile/KeplrWalletConnectV1"
 import {
   BaseModal,
@@ -38,6 +38,9 @@ import { WalletManagerContext } from "./WalletManagerContext"
 export type WalletManagerProviderProps = PropsWithChildren<{
   // Wallet types available for connection.
   enabledWalletTypes: WalletType[]
+  // Optional wallet options for each wallet type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  walletOptions?: Partial<Record<WalletType, Record<string, any>>>
   // Chain ID to initially connect to and selected by default if nothing
   // is passed to the hook. Must be present in one of the objects in
   // `chainInfoList`.
@@ -79,6 +82,7 @@ export const WalletManagerProvider: FunctionComponent<
 > = ({
   children,
   enabledWalletTypes,
+  walletOptions,
   defaultChainId,
   chainInfoOverrides,
   classNames,
@@ -159,6 +163,9 @@ export const WalletManagerProvider: FunctionComponent<
   // Disconnect from connected wallet.
   const disconnect = useCallback(
     async (dontKillWalletConnect?: boolean) => {
+      // Disconnect client if it exists.
+      connectedWallet?.walletClient?.disconnect?.()
+
       // Disconnect wallet.
       setConnectedWallet(undefined)
       setStatus(WalletConnectionStatus.ReadyForConnection)
@@ -181,7 +188,7 @@ export const WalletManagerProvider: FunctionComponent<
         }
       }
     },
-    [localStorageKey, walletConnect]
+    [localStorageKey, walletConnect, connectedWallet]
   )
 
   // Obtain WalletConnect if necessary, and connect to the wallet.
@@ -202,7 +209,11 @@ export const WalletManagerProvider: FunctionComponent<
 
         const chainInfo = await _getDefaultChainInfo()
 
-        walletClient = await wallet.getClient(chainInfo, _walletConnect)
+        walletClient = await wallet.getClient(
+          chainInfo,
+          _walletConnect,
+          walletOptions?.[wallet.type]
+        )
         if (!walletClient) {
           throw new Error("Failed to retrieve wallet client.")
         }
@@ -298,6 +309,7 @@ export const WalletManagerProvider: FunctionComponent<
     [
       walletConnect,
       _getDefaultChainInfo,
+      walletOptions,
       getSigningCosmWasmClientOptions,
       getSigningStargateClientOptions,
       localStorageKey,

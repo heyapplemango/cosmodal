@@ -14,12 +14,29 @@ export interface IKeplrWalletConnectV1 extends Keplr {
   dontOpenAppOnEnable: boolean
 }
 
-export type WalletClient = Keplr | IKeplrWalletConnectV1
+export type WalletClient = Pick<
+  Keplr,
+  | "enable"
+  | "getOfflineSigner"
+  | "getOfflineSignerAuto"
+  | "getOfflineSignerOnlyAmino"
+> &
+  Partial<Pick<Keplr, "mode" | "experimentalSuggestChain">> & {
+    getKey: (chainId: string) => Promise<{
+      name: string
+      algo: string
+      pubKey: Uint8Array
+      address: Uint8Array
+      bech32Address: string
+    }>
+    disconnect?: () => Promise<void>
+  }
 
 export enum WalletType {
   Leap = "leap",
   Keplr = "keplr",
   WalletConnectKeplr = "walletconnect_keplr",
+  Web3Auth = "web3auth",
 }
 
 export interface Wallet {
@@ -35,7 +52,9 @@ export interface Wallet {
   // `walletConnect` passed if `type === WalletType.WalletConnectKeplr`.
   getClient: (
     chainInfo: ChainInfo,
-    walletConnect?: WalletConnect
+    walletConnect?: WalletConnect,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    options?: Record<string, any>
   ) => Promise<WalletClient | undefined>
   // A function that returns the function to retrieve the `OfflineSigner`
   // for this wallet.

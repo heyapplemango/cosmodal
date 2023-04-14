@@ -23,10 +23,11 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
       WalletType.Leap,
       WalletType.Keplr,
       WalletType.WalletConnectKeplr,
+      WalletType.Web3Auth,
     ]}
     renderLoader={() => <p>Loading...</p>}
     localStorageKey={LOCAL_STORAGE_KEY}
-    defaultChainId={ChainInfoID.Juno1}
+    defaultChainId={ChainInfoID.Uni6}
     getSigningCosmWasmClientOptions={(chainInfo) => ({
       gasPrice: GasPrice.fromString(
         "0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom
@@ -37,6 +38,11 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
         "0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom
       ),
     })}
+    walletOptions={{
+      [WalletType.Web3Auth]: {
+        promptSign: () => confirm("Sign this transaction?"),
+      }
+    }}
     // Choose a different RPC node for the desired chain.
     // chainInfoOverrides={[
     //   {
