@@ -12,8 +12,8 @@ import React, {
   useRef,
   useState,
 } from "react"
+import { KeplrExtensionWallet } from "src/wallets/keplr/extension"
 
-import { KeplrWalletConnectV1 } from "../connectors"
 import {
   ChainInfoOverrides,
   ConnectedWallet,
@@ -24,12 +24,9 @@ import {
   WalletConnectionStatus,
   WalletType,
 } from "../types"
-import {
-  getChainInfo,
-  getConnectedWalletInfo,
-  KeplrWallet,
-  Wallets,
-} from "../utils"
+import { getChainInfo, getConnectedWalletInfo } from "../utils"
+import { WALLETS } from "../wallets"
+import { KeplrWalletConnectV1 } from "../wallets/keplr/mobile/KeplrWalletConnectV1"
 import {
   BaseModal,
   EnablingWalletModal,
@@ -98,7 +95,7 @@ export const WalletManagerProvider: FunctionComponent<
   //! STATE
 
   const enabledWallets = useMemo(
-    () => Wallets.filter(({ type }) => enabledWalletTypes.includes(type)),
+    () => WALLETS.filter(({ type }) => enabledWalletTypes.includes(type)),
     [enabledWalletTypes]
   )
 
@@ -335,7 +332,7 @@ export const WalletManagerProvider: FunctionComponent<
     const skipModalWallet =
       // Mobile web mode takes precedence over automatic wallet.
       isEmbeddedKeplrMobileWeb
-        ? KeplrWallet
+        ? KeplrExtensionWallet
         : // If only one wallet is available, skip the modal and use it.
         enabledWallets.length === 1
         ? enabledWallets[0]

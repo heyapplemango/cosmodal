@@ -33,7 +33,7 @@ import { Buffer } from "buffer"
 import deepmerge from "deepmerge"
 import { SecretUtils } from "secretjs/types/enigmautils"
 
-import { IKeplrWalletConnectV1 } from "../types"
+import { IKeplrWalletConnectV1 } from "../../../types"
 
 // VersionFormatRegExp checks if a chainID is in the format required for parsing versions
 // The chainID should be in the form: `{identifier}-{version}`
