@@ -40,6 +40,7 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
     })}
     walletOptions={{
       [WalletType.Web3Auth]: {
+        clientId: 'example',
         promptSign: () => confirm("Sign this transaction?"),
       }
     }}

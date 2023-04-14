@@ -10,42 +10,44 @@ import { Web3AuthSigner } from "./signers"
 import { PromptSign } from "./types"
 
 export class Web3AuthClient implements WalletClient {
-  client: Web3Auth
-  chainInfo: ChainInfo
-  promptSign: PromptSign
-  signer: Web3AuthSigner | undefined
+  #client: Web3Auth
+  #promptSign: PromptSign
 
-  constructor(client: Web3Auth, chainInfo: ChainInfo, promptSign: PromptSign) {
-    this.client = client
-    this.chainInfo = chainInfo
-    this.promptSign = promptSign
+  // Map chain ID to chain info.
+  chainInfo: Record<string, ChainInfo | undefined> = {}
+  // Map chain ID to signer.
+  #signers: Record<string, Web3AuthSigner | undefined> = {}
+
+  constructor(client: Web3Auth, promptSign: PromptSign) {
+    this.#client = client
+    this.#promptSign = promptSign
   }
 
   static async setup(
-    chainInfo: ChainInfo,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options?: Record<string, any>
   ): Promise<Web3AuthClient> {
+    const { clientId, promptSign } = options ?? {}
+    if (typeof clientId !== "string") {
+      throw new Error("Invalid web3auth client ID")
+    }
+    if (typeof promptSign !== "function") {
+      throw new Error("Invalid promptSign function")
+    }
+
     const client = new Web3Auth({
-      // Get from developer dashboard.
-      clientId: "randomlocalhost",
+      clientId,
       chainConfig: {
         chainNamespace: CHAIN_NAMESPACES.OTHER,
       },
     })
     await client.initModal()
 
-    // Get promptSign from options and ensure it is valid.
-    const promptSign = options?.promptSign
-    if (typeof promptSign !== "function") {
-      throw new Error("Invalid promptSign")
-    }
-
-    return new Web3AuthClient(client, chainInfo, promptSign)
+    return new Web3AuthClient(client, promptSign)
   }
 
-  async getPrivateKey(): Promise<Uint8Array> {
-    const privateKeyHex = await this.client.provider?.request({
+  async #getPrivateKey(): Promise<Uint8Array> {
+    const privateKeyHex = await this.#client.provider?.request({
       method: "private_key",
     })
     if (typeof privateKeyHex !== "string") {
@@ -54,38 +56,45 @@ export class Web3AuthClient implements WalletClient {
     return Uint8Array.from(Buffer.from(privateKeyHex, "hex"))
   }
 
+  async experimentalSuggestChain(chainInfo: ChainInfo): Promise<void> {
+    this.chainInfo[chainInfo.chainId] = chainInfo
+  }
+
   async enable(_chainIds: string | string[]) {
     const chainIds = [_chainIds].flat()
-    if (chainIds.length !== 1 || chainIds[0] !== this.chainInfo.chainId) {
-      throw new Error(`Expected ${this.chainInfo.chainId}`)
+    if (chainIds.some((chainId) => !this.chainInfo[chainId])) {
+      throw new Error("Chain not supported")
     }
 
-    await this.client.connect()
+    await this.#client.connect()
 
-    // Get private key.
-    const privateKey = await this.getPrivateKey()
-
-    // Create signer.
-    this.signer = await Web3AuthSigner.setup(
-      this.chainInfo,
-      this.promptSign,
-      privateKey
+    // Create signers.
+    await Promise.all(
+      chainIds.map(async (chainId) => {
+        const chainInfo = this.chainInfo[chainId]
+        if (!chainInfo) {
+          throw new Error("Chain not supported")
+        }
+        this.#signers[chainId] = await Web3AuthSigner.setup(
+          chainInfo,
+          this.#promptSign,
+          this.#getPrivateKey.bind(this)
+        )
+      })
     )
   }
 
   async disconnect() {
-    await this.client.logout()
-    this.signer = undefined
+    await this.#client.logout()
+    this.#signers = {}
   }
 
   getOfflineSigner(chainId: string) {
-    if (chainId !== this.chainInfo.chainId) {
-      throw new Error(`Expected ${this.chainInfo.chainId}`)
-    }
-    if (!this.signer) {
+    const signer = this.#signers[chainId]
+    if (!signer) {
       throw new Error("Signer not enabled")
     }
-    return this.signer
+    return signer
   }
 
   async getOfflineSignerAuto(
@@ -95,13 +104,7 @@ export class Web3AuthClient implements WalletClient {
   }
 
   getOfflineSignerOnlyAmino(chainId: string): OfflineAminoSigner {
-    if (chainId !== this.chainInfo.chainId) {
-      throw new Error(`Expected ${this.chainInfo.chainId}`)
-    }
-    if (!this.signer) {
-      throw new Error("Signer not enabled")
-    }
-    return this.signer
+    return this.getOfflineSigner(chainId)
   }
 
   async getKey(chainId: string): Promise<{
@@ -111,15 +114,10 @@ export class Web3AuthClient implements WalletClient {
     address: Uint8Array
     bech32Address: string
   }> {
-    if (chainId !== this.chainInfo.chainId) {
-      throw new Error(`Expected ${this.chainInfo.chainId}`)
-    }
-    if (!this.signer) {
-      throw new Error("Signer not enabled")
-    }
-
-    const info = await this.client.getUserInfo()
-    const { address, algo, pubkey } = (await this.signer.getAccounts())[0]
+    const { address, algo, pubkey } = (
+      await this.getOfflineSigner(chainId).getAccounts()
+    )[0]
+    const info = await this.#client.getUserInfo()
 
     return {
       name: info.name || info.email || address,
