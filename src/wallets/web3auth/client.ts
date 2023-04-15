@@ -2,6 +2,7 @@ import { OfflineAminoSigner } from "@cosmjs/amino"
 import { fromBech32 } from "@cosmjs/encoding"
 import { OfflineDirectSigner } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
+import { OPENLOGIN_NETWORK } from "@toruslabs/openlogin"
 import { CHAIN_NAMESPACES } from "@web3auth/base"
 import { Web3Auth } from "@web3auth/modal"
 
@@ -25,19 +26,31 @@ export class Web3AuthClient implements WalletClient {
 
   static async setup(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    options?: Record<string, any>
+    _options?: Record<string, any>
   ): Promise<Web3AuthClient> {
-    const { clientId, promptSign } = options ?? {}
+    const { clientId, web3AuthNetwork, promptSign, ...options } = _options ?? {}
     if (typeof clientId !== "string") {
       throw new Error("Invalid web3auth client ID")
+    }
+    if (
+      typeof web3AuthNetwork !== "string" ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      !Object.values(OPENLOGIN_NETWORK).includes(web3AuthNetwork as any)
+    ) {
+      throw new Error("Invalid web3auth network")
     }
     if (typeof promptSign !== "function") {
       throw new Error("Invalid promptSign function")
     }
 
     const client = new Web3Auth({
+      ...options,
+
       clientId,
+      web3AuthNetwork:
+        web3AuthNetwork as typeof OPENLOGIN_NETWORK[keyof typeof OPENLOGIN_NETWORK],
       chainConfig: {
+        ...options.chainConfig,
         chainNamespace: CHAIN_NAMESPACES.OTHER,
       },
     })
