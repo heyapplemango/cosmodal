@@ -79,7 +79,9 @@ export class Web3AuthClient implements WalletClient {
       throw new Error("Chain not supported")
     }
 
-    await this.#client.connect()
+    if (!(await this.#client.connect())) {
+      throw new Error("Failed to connect to Web3Auth")
+    }
 
     // Create signers.
     await Promise.all(
