@@ -2,16 +2,24 @@ import { OfflineAminoSigner } from "@cosmjs/amino"
 import { fromBech32 } from "@cosmjs/encoding"
 import { OfflineDirectSigner } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
-import { OPENLOGIN_NETWORK } from "@toruslabs/openlogin"
-import { CHAIN_NAMESPACES } from "@web3auth/base"
-import { Web3Auth } from "@web3auth/modal"
+import {
+  LOGIN_PROVIDER_TYPE,
+  OPENLOGIN_NETWORK,
+  UX_MODE,
+} from "@toruslabs/openlogin"
+import { CHAIN_NAMESPACES, UserInfo, WALLET_ADAPTERS } from "@web3auth/base"
+import { Web3AuthNoModal } from "@web3auth/no-modal"
+import { OpenloginAdapter } from "@web3auth/openlogin-adapter"
 
 import { WalletClient } from "../../types"
 import { Web3AuthSigner } from "./signers"
-import { PromptSign } from "./types"
+import { PromptSign, Web3AuthClientOptions } from "./types"
+import { sendAndListenOnce } from "./utils"
 
 export class Web3AuthClient implements WalletClient {
-  #client: Web3Auth
+  #worker: Worker
+  #userInfo: Partial<UserInfo>
+  #logout: () => Promise<void>
   #promptSign: PromptSign
 
   // Map chain ID to chain info.
@@ -19,54 +27,92 @@ export class Web3AuthClient implements WalletClient {
   // Map chain ID to signer.
   #signers: Record<string, Web3AuthSigner | undefined> = {}
 
-  constructor(client: Web3Auth, promptSign: PromptSign) {
-    this.#client = client
-    this.#promptSign = promptSign
+  constructor(
+    worker: Worker,
+    userInfo: Partial<UserInfo>,
+    logout: () => Promise<void>,
+    options: Web3AuthClientOptions
+  ) {
+    this.#worker = worker
+    this.#userInfo = userInfo
+    this.#logout = logout
+    this.#promptSign = options.promptSign
   }
 
   static async setup(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _options?: Record<string, any>
+    loginProvider: LOGIN_PROVIDER_TYPE,
+    _options?: Partial<Web3AuthClientOptions>
   ): Promise<Web3AuthClient> {
-    const { clientId, web3AuthNetwork, promptSign, ...options } = _options ?? {}
-    if (typeof clientId !== "string") {
+    // Validate options since they're not type-checked on input.
+    if (typeof _options?.client?.clientId !== "string") {
       throw new Error("Invalid web3auth client ID")
     }
     if (
-      typeof web3AuthNetwork !== "string" ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      !Object.values(OPENLOGIN_NETWORK).includes(web3AuthNetwork as any)
+      typeof _options?.client?.web3AuthNetwork !== "string" ||
+      !Object.values(OPENLOGIN_NETWORK).includes(
+        _options.client.web3AuthNetwork
+      )
     ) {
       throw new Error("Invalid web3auth network")
     }
-    if (typeof promptSign !== "function") {
+    if (typeof _options.promptSign !== "function") {
       throw new Error("Invalid promptSign function")
     }
 
-    const client = new Web3Auth({
-      ...options,
+    const options = _options as Web3AuthClientOptions
 
-      clientId,
-      web3AuthNetwork:
-        web3AuthNetwork as typeof OPENLOGIN_NETWORK[keyof typeof OPENLOGIN_NETWORK],
+    const client = new Web3AuthNoModal({
+      ...options.client,
       chainConfig: {
-        ...options.chainConfig,
+        ...options.client.chainConfig,
         chainNamespace: CHAIN_NAMESPACES.OTHER,
       },
     })
-    await client.initModal()
 
-    return new Web3AuthClient(client, promptSign)
-  }
+    const openloginAdapter = new OpenloginAdapter({
+      adapterSettings: {
+        uxMode: UX_MODE.POPUP,
+      },
+    })
+    client.configureAdapter(openloginAdapter)
 
-  async #getPrivateKey(): Promise<Uint8Array> {
-    const privateKeyHex = await this.#client.provider?.request({
+    await client.init()
+
+    const provider =
+      client.provider ??
+      (await client.connectTo(WALLET_ADAPTERS.OPENLOGIN, {
+        loginProvider,
+      }))
+
+    const userInfo = await client.getUserInfo()
+
+    const privateKeyHex = await provider?.request({
       method: "private_key",
     })
     if (typeof privateKeyHex !== "string") {
-      throw new Error("Invalid private key")
+      throw new Error(`Failed to connect to ${loginProvider}`)
     }
-    return Uint8Array.from(Buffer.from(privateKeyHex, "hex"))
+
+    const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, "hex"))
+
+    const worker = new Worker(new URL("./worker.js", import.meta.url))
+    await sendAndListenOnce(
+      worker,
+      {
+        type: "init",
+        payload: {
+          privateKey,
+        },
+      },
+      (data) => data.type === "ready"
+    )
+
+    return new Web3AuthClient(
+      worker,
+      userInfo,
+      client.logout.bind(client),
+      options
+    )
   }
 
   async experimentalSuggestChain(chainInfo: ChainInfo): Promise<void> {
@@ -79,10 +125,6 @@ export class Web3AuthClient implements WalletClient {
       throw new Error("Chain not supported")
     }
 
-    if (!(await this.#client.connect())) {
-      throw new Error("Failed to connect to Web3Auth")
-    }
-
     // Create signers.
     await Promise.all(
       chainIds.map(async (chainId) => {
@@ -90,17 +132,17 @@ export class Web3AuthClient implements WalletClient {
         if (!chainInfo) {
           throw new Error("Chain not supported")
         }
-        this.#signers[chainId] = await Web3AuthSigner.setup(
+        this.#signers[chainId] = new Web3AuthSigner(
           chainInfo,
-          this.#promptSign,
-          this.#getPrivateKey.bind(this)
+          this.#worker,
+          this.#promptSign
         )
       })
     )
   }
 
   async disconnect() {
-    await this.#client.logout()
+    await this.#logout()
     this.#signers = {}
   }
 
@@ -132,10 +174,9 @@ export class Web3AuthClient implements WalletClient {
     const { address, algo, pubkey } = (
       await this.getOfflineSigner(chainId).getAccounts()
     )[0]
-    const info = await this.#client.getUserInfo()
 
     return {
-      name: info.name || info.email || address,
+      name: this.#userInfo.name || this.#userInfo.email || address,
       algo,
       pubKey: pubkey,
       address: fromBech32(address).data,

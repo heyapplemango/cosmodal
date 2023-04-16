@@ -1,59 +1,60 @@
 import {
   AminoSignResponse,
   OfflineAminoSigner,
-  Secp256k1Wallet,
   StdSignDoc,
 } from "@cosmjs/amino"
 import {
   AccountData,
-  DirectSecp256k1Wallet,
   DirectSignResponse,
   OfflineDirectSigner,
 } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx"
 
-import { PromptSign } from "./types"
+import { PromptSign, SignData } from "./types"
+import { sendAndListenOnce } from "./utils"
 
 export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
   chainInfo: ChainInfo
+  #worker: Worker
   #promptSign: PromptSign
-  #getPrivateKey: () => Promise<Uint8Array>
 
-  constructor(
-    chainInfo: ChainInfo,
-    promptSign: PromptSign,
-    getPrivateKey: () => Promise<Uint8Array>
-  ) {
+  constructor(chainInfo: ChainInfo, worker: Worker, promptSign: PromptSign) {
     this.chainInfo = chainInfo
+    this.#worker = worker
     this.#promptSign = promptSign
-    this.#getPrivateKey = getPrivateKey
-  }
-
-  static async setup(
-    chainInfo: ChainInfo,
-    promptSign: PromptSign,
-    getPrivateKey: () => Promise<Uint8Array>
-  ) {
-    return new Web3AuthSigner(chainInfo, promptSign, getPrivateKey)
-  }
-
-  async #getDirectSigner(): Promise<DirectSecp256k1Wallet> {
-    return await DirectSecp256k1Wallet.fromKey(
-      await this.#getPrivateKey(),
-      this.chainInfo.bech32Config.bech32PrefixAccAddr
-    )
-  }
-
-  async #getAminoSigner(): Promise<Secp256k1Wallet> {
-    return await Secp256k1Wallet.fromKey(
-      await this.#getPrivateKey(),
-      this.chainInfo.bech32Config.bech32PrefixAccAddr
-    )
   }
 
   async getAccounts(): Promise<readonly AccountData[]> {
-    return await (await this.#getDirectSigner()).getAccounts()
+    let accounts: AccountData[] | undefined
+    // Should not resolve until accounts are received.
+    await sendAndListenOnce(
+      this.#worker,
+      {
+        type: "request_accounts",
+        payload: {
+          chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
+        },
+      },
+      (data) => {
+        if (data.type === "accounts") {
+          if (data.payload.response.type === "success") {
+            accounts = data.payload.response.accounts
+          } else {
+            throw new Error(data.payload.response.error)
+          }
+          return true
+        }
+
+        return false
+      }
+    )
+
+    if (!accounts) {
+      throw new Error("Failed to get accounts")
+    }
+
+    return accounts
   }
 
   async signDirect(
@@ -64,13 +65,51 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       throw new Error("Chain ID mismatch")
     }
 
-    if (await this.#promptSign(signerAddress, signDoc)) {
-      return await (
-        await this.#getDirectSigner()
-      ).signDirect(signerAddress, signDoc)
-    } else {
+    const signData: SignData = {
+      type: "direct",
+      value: signDoc,
+    }
+    if (!(await this.#promptSign(signerAddress, signData))) {
       throw new Error("Request rejected")
     }
+
+    let response: DirectSignResponse | undefined
+    const id = Date.now()
+    // Should not resolve until response is received.
+    await sendAndListenOnce(
+      this.#worker,
+      {
+        type: "request_sign",
+        payload: {
+          id,
+          signerAddress,
+          chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
+          data: signData,
+        },
+      },
+      (data) => {
+        if (data.type === "sign" && data.payload.id === id) {
+          if (data.payload.response.type === "error") {
+            throw new Error(data.payload.response.value)
+          }
+
+          // Type-check, should always be true.
+          if (data.payload.response.type === "direct") {
+            response = data.payload.response.value
+          }
+
+          return true
+        }
+
+        return false
+      }
+    )
+
+    if (!response) {
+      throw new Error("Failed to get response")
+    }
+
+    return response
   }
 
   async signAmino(
@@ -81,10 +120,50 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       throw new Error("Chain ID mismatch")
     }
 
-    if (await this.#promptSign(signerAddress, signDoc)) {
-      return (await this.#getAminoSigner()).signAmino(signerAddress, signDoc)
-    } else {
+    const signData: SignData = {
+      type: "amino",
+      value: signDoc,
+    }
+    if (!(await this.#promptSign(signerAddress, signData))) {
       throw new Error("Request rejected")
     }
+
+    let response: AminoSignResponse | undefined
+    const id = Date.now()
+    // Should not resolve until response is received.
+    await sendAndListenOnce(
+      this.#worker,
+      {
+        type: "request_sign",
+        payload: {
+          id,
+          signerAddress,
+          chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
+          data: signData,
+        },
+      },
+      (data) => {
+        if (data.type === "sign" && data.payload.id === id) {
+          if (data.payload.response.type === "error") {
+            throw new Error(data.payload.response.value)
+          }
+
+          // Type-check, should always be true.
+          if (data.payload.response.type === "amino") {
+            response = data.payload.response.value
+          }
+
+          return true
+        }
+
+        return false
+      }
+    )
+
+    if (!response) {
+      throw new Error("Failed to get response")
+    }
+
+    return response
   }
 }

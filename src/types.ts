@@ -36,7 +36,12 @@ export enum WalletType {
   Leap = "leap",
   Keplr = "keplr",
   WalletConnectKeplr = "walletconnect_keplr",
-  Web3Auth = "web3auth",
+
+  // Web3Auth
+  Google = "google",
+  Apple = "apple",
+  Discord = "discord",
+  Twitter = "twitter",
 }
 
 export interface Wallet {
