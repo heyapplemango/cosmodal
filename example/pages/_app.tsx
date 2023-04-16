@@ -10,6 +10,13 @@ import { FunctionComponent } from "react"
 import { GasPrice } from "@cosmjs/stargate"
 
 const LOCAL_STORAGE_KEY = "connectedWalletId"
+const web3AuthWalletOptions = {
+  client: {
+    clientId: 'example',
+    web3AuthNetwork: 'testnet',
+  },
+  promptSign: () => confirm("Sign this transaction?"),
+}
 
 const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
   <WalletManagerProvider
@@ -23,7 +30,10 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
       WalletType.Leap,
       WalletType.Keplr,
       WalletType.WalletConnectKeplr,
-      WalletType.Web3Auth,
+      WalletType.Google,
+      WalletType.Apple,
+      WalletType.Discord,
+      WalletType.Twitter,
     ]}
     renderLoader={() => <p>Loading...</p>}
     localStorageKey={LOCAL_STORAGE_KEY}
@@ -39,10 +49,10 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
       ),
     })}
     walletOptions={{
-      [WalletType.Web3Auth]: {
-        clientId: 'example',
-        promptSign: () => confirm("Sign this transaction?"),
-      }
+      [WalletType.Google]: web3AuthWalletOptions,
+      [WalletType.Apple]: web3AuthWalletOptions,
+      [WalletType.Discord]: web3AuthWalletOptions,
+      [WalletType.Twitter]: web3AuthWalletOptions,
     }}
     // Choose a different RPC node for the desired chain.
     // chainInfoOverrides={[
