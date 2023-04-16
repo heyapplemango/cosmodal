@@ -100,8 +100,9 @@ const Web3AuthWallets = styled.div`
   display: flex;
   flex-direction: row;
   justify-content: space-around;
+  flex-wrap: wrap;
   gap: 1rem;
-  margin: 1rem 0;
+  margin: 0.5rem 0;
 `
 
 const Web3AuthWalletContainer = styled.div`
