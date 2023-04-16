@@ -15,17 +15,27 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
 
     workerPrivateKey = eccrypto.generatePrivate()
 
-    const encryptedPublicKey = await eccrypto.encrypt(
-      clientPublicKey,
-      eccrypto.getPublic(workerPrivateKey)
-    )
+    try {
+      const encryptedPublicKey = await eccrypto.encrypt(
+        clientPublicKey,
+        eccrypto.getPublic(workerPrivateKey)
+      )
 
-    return self.postMessage({
-      type: "ready_1",
-      payload: {
-        encryptedPublicKey,
-      },
-    })
+      return self.postMessage({
+        type: "ready_1",
+        payload: {
+          encryptedPublicKey,
+        },
+      })
+    } catch (err) {
+      console.error("Web3Auth worker init_1 error", err)
+      return self.postMessage({
+        type: "init_error",
+        payload: {
+          error: err instanceof Error ? err.message : `${err}`,
+        },
+      })
+    }
   }
 
   if (!clientPublicKey || !workerPrivateKey) {
@@ -33,15 +43,25 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
   }
 
   if (data.type === "init_2") {
-    // Decrypt the private key.
-    walletPrivateKey = await decrypt(
-      workerPrivateKey,
-      data.payload.encryptedPrivateKey
-    )
+    try {
+      // Decrypt the private key.
+      walletPrivateKey = await decrypt(
+        workerPrivateKey,
+        data.payload.encryptedPrivateKey
+      )
 
-    return self.postMessage({
-      type: "ready_2",
-    })
+      return self.postMessage({
+        type: "ready_2",
+      })
+    } catch (err) {
+      console.error("Web3Auth worker init_2 error", err)
+      return self.postMessage({
+        type: "init_error",
+        payload: {
+          error: err instanceof Error ? err.message : `${err}`,
+        },
+      })
+    }
   }
 
   if (!walletPrivateKey) {

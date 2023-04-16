@@ -74,6 +74,12 @@ export type FromWorkerMessage =
       type: "ready_2"
     }
   | {
+      type: "init_error"
+      payload: {
+        error: string
+      }
+    }
+  | {
       type: "accounts"
       payload: {
         response:

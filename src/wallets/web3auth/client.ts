@@ -120,6 +120,8 @@ export class Web3AuthClient implements WalletClient {
             data.payload.encryptedPublicKey
           )
           return true
+        } else if (data.type === "init_error") {
+          throw new Error(data.payload.error)
         }
 
         return false
@@ -142,7 +144,15 @@ export class Web3AuthClient implements WalletClient {
           encryptedPrivateKey,
         },
       },
-      (data) => data.type === "ready_2"
+      (data) => {
+        if (data.type === "ready_2") {
+          return true
+        } else if (data.type === "init_error") {
+          throw new Error(data.payload.error)
+        }
+
+        return false
+      }
     )
 
     return new Web3AuthClient(
