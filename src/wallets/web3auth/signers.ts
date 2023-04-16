@@ -9,19 +9,27 @@ import {
   OfflineDirectSigner,
 } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
+import eccrypto from "@toruslabs/eccrypto"
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx"
 
-import { PromptSign, SignData } from "./types"
-import { sendAndListenOnce } from "./utils"
+import { PromptSign, SignData, ToWorkerMessage } from "./types"
+import { hashObject, sendAndListenOnce } from "./utils"
 
 export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
   chainInfo: ChainInfo
   #worker: Worker
+  #clientPrivateKey: Buffer
   #promptSign: PromptSign
 
-  constructor(chainInfo: ChainInfo, worker: Worker, promptSign: PromptSign) {
+  constructor(
+    chainInfo: ChainInfo,
+    worker: Worker,
+    clientPrivateKey: Buffer,
+    promptSign: PromptSign
+  ) {
     this.chainInfo = chainInfo
     this.#worker = worker
+    this.#clientPrivateKey = clientPrivateKey
     this.#promptSign = promptSign
   }
 
@@ -75,35 +83,38 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
 
     let response: DirectSignResponse | undefined
     const id = Date.now()
-    // Should not resolve until response is received.
-    await sendAndListenOnce(
-      this.#worker,
-      {
-        type: "request_sign",
-        payload: {
-          id,
-          signerAddress,
-          chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
-          data: signData,
-        },
+    const message: ToWorkerMessage = {
+      type: "request_sign",
+      payload: {
+        id,
+        signerAddress,
+        chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
+        data: signData,
       },
-      (data) => {
-        if (data.type === "sign" && data.payload.id === id) {
-          if (data.payload.response.type === "error") {
-            throw new Error(data.payload.response.value)
-          }
+      signature: new Uint8Array(),
+    }
+    message.signature = await eccrypto.sign(
+      this.#clientPrivateKey,
+      hashObject(message.payload)
+    )
 
-          // Type-check, should always be true.
-          if (data.payload.response.type === "direct") {
-            response = data.payload.response.value
-          }
-
-          return true
+    // Should not resolve until response is received.
+    await sendAndListenOnce(this.#worker, message, (data) => {
+      if (data.type === "sign" && data.payload.id === id) {
+        if (data.payload.response.type === "error") {
+          throw new Error(data.payload.response.value)
         }
 
-        return false
+        // Type-check, should always be true.
+        if (data.payload.response.type === "direct") {
+          response = data.payload.response.value
+        }
+
+        return true
       }
-    )
+
+      return false
+    })
 
     if (!response) {
       throw new Error("Failed to get response")
@@ -130,35 +141,38 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
 
     let response: AminoSignResponse | undefined
     const id = Date.now()
-    // Should not resolve until response is received.
-    await sendAndListenOnce(
-      this.#worker,
-      {
-        type: "request_sign",
-        payload: {
-          id,
-          signerAddress,
-          chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
-          data: signData,
-        },
+    const message: ToWorkerMessage = {
+      type: "request_sign",
+      payload: {
+        id,
+        signerAddress,
+        chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
+        data: signData,
       },
-      (data) => {
-        if (data.type === "sign" && data.payload.id === id) {
-          if (data.payload.response.type === "error") {
-            throw new Error(data.payload.response.value)
-          }
+      signature: new Uint8Array(),
+    }
+    message.signature = await eccrypto.sign(
+      this.#clientPrivateKey,
+      hashObject(message.payload)
+    )
 
-          // Type-check, should always be true.
-          if (data.payload.response.type === "amino") {
-            response = data.payload.response.value
-          }
-
-          return true
+    // Should not resolve until response is received.
+    await sendAndListenOnce(this.#worker, message, (data) => {
+      if (data.type === "sign" && data.payload.id === id) {
+        if (data.payload.response.type === "error") {
+          throw new Error(data.payload.response.value)
         }
 
-        return false
+        // Type-check, should always be true.
+        if (data.payload.response.type === "amino") {
+          response = data.payload.response.value
+        }
+
+        return true
       }
-    )
+
+      return false
+    })
 
     if (!response) {
       throw new Error("Failed to get response")

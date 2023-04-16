@@ -1,19 +1,50 @@
 import { Secp256k1Wallet } from "@cosmjs/amino"
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing"
+import eccrypto from "@toruslabs/eccrypto"
 
 import { ToWorkerMessage } from "./types"
+import { decrypt, hashObject } from "./utils"
 
-let privateKey: Uint8Array | undefined
+let clientPublicKey: Buffer | undefined
+let workerPrivateKey: Buffer | undefined
+let walletPrivateKey: Uint8Array | undefined
 
 self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
-  if (data.type === "init") {
-    privateKey = data.payload.privateKey
+  if (data.type === "init_1") {
+    clientPublicKey = Buffer.from(data.payload.publicKey, "hex")
+
+    workerPrivateKey = eccrypto.generatePrivate()
+
+    const encryptedPublicKey = await eccrypto.encrypt(
+      clientPublicKey,
+      eccrypto.getPublic(workerPrivateKey)
+    )
+
     return self.postMessage({
-      type: "ready",
+      type: "ready_1",
+      payload: {
+        encryptedPublicKey,
+      },
     })
   }
 
-  if (!privateKey) {
+  if (!clientPublicKey || !workerPrivateKey) {
+    throw new Error("Web3Auth worker not initialized")
+  }
+
+  if (data.type === "init_2") {
+    // Decrypt the private key.
+    walletPrivateKey = await decrypt(
+      workerPrivateKey,
+      data.payload.encryptedPrivateKey
+    )
+
+    return self.postMessage({
+      type: "ready_2",
+    })
+  }
+
+  if (!walletPrivateKey) {
     throw new Error("Web3Auth client not initialized")
   }
 
@@ -21,7 +52,7 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
     try {
       const accounts = await (
         await DirectSecp256k1Wallet.fromKey(
-          privateKey,
+          walletPrivateKey,
           data.payload.chainBech32Prefix
         )
       ).getAccounts()
@@ -51,10 +82,17 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
 
   if (data.type === "request_sign") {
     try {
+      // Verify signature.
+      await eccrypto.verify(
+        clientPublicKey,
+        hashObject(data.payload),
+        Buffer.from(data.signature)
+      )
+
       if (data.payload.data.type === "direct") {
         const response = await (
           await DirectSecp256k1Wallet.fromKey(
-            privateKey,
+            walletPrivateKey,
             data.payload.chainBech32Prefix
           )
         ).signDirect(data.payload.signerAddress, data.payload.data.value)
@@ -71,7 +109,7 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
       } else if (data.payload.data.type === "amino") {
         const response = await (
           await Secp256k1Wallet.fromKey(
-            privateKey,
+            walletPrivateKey,
             data.payload.chainBech32Prefix
           )
         ).signAmino(data.payload.signerAddress, data.payload.data.value)

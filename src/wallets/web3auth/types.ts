@@ -1,5 +1,6 @@
 import { AminoSignResponse, StdSignDoc } from "@cosmjs/amino"
 import { AccountData, DirectSignResponse } from "@cosmjs/proto-signing"
+import { Ecies } from "@toruslabs/eccrypto"
 import { OPENLOGIN_NETWORK_TYPE } from "@toruslabs/openlogin"
 import { Web3AuthNoModalOptions } from "@web3auth/no-modal"
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx"
@@ -33,9 +34,15 @@ export type SignData =
 // Message the worker expects to receive.
 export type ToWorkerMessage =
   | {
-      type: "init"
+      type: "init_1"
       payload: {
-        privateKey: Uint8Array
+        publicKey: string
+      }
+    }
+  | {
+      type: "init_2"
+      payload: {
+        encryptedPrivateKey: Ecies
       }
     }
   | {
@@ -52,12 +59,19 @@ export type ToWorkerMessage =
         chainBech32Prefix: string
         data: SignData
       }
+      signature: Uint8Array
     }
 
 // Message the worker sends to the main thread.
 export type FromWorkerMessage =
   | {
-      type: "ready"
+      type: "ready_1"
+      payload: {
+        encryptedPublicKey: Ecies
+      }
+    }
+  | {
+      type: "ready_2"
     }
   | {
       type: "accounts"

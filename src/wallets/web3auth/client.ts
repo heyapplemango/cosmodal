@@ -2,6 +2,7 @@ import { OfflineAminoSigner } from "@cosmjs/amino"
 import { fromBech32 } from "@cosmjs/encoding"
 import { OfflineDirectSigner } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
+import eccrypto from "@toruslabs/eccrypto"
 import {
   LOGIN_PROVIDER_TYPE,
   OPENLOGIN_NETWORK,
@@ -14,10 +15,11 @@ import { OpenloginAdapter } from "@web3auth/openlogin-adapter"
 import { WalletClient } from "../../types"
 import { Web3AuthSigner } from "./signers"
 import { PromptSign, Web3AuthClientOptions } from "./types"
-import { sendAndListenOnce } from "./utils"
+import { decrypt, sendAndListenOnce } from "./utils"
 
 export class Web3AuthClient implements WalletClient {
   #worker: Worker
+  #clientPrivateKey: Buffer
   #userInfo: Partial<UserInfo>
   #logout: () => Promise<void>
   #promptSign: PromptSign
@@ -29,11 +31,13 @@ export class Web3AuthClient implements WalletClient {
 
   constructor(
     worker: Worker,
+    clientPrivateKey: Buffer,
     userInfo: Partial<UserInfo>,
     logout: () => Promise<void>,
     options: Web3AuthClientOptions
   ) {
     this.#worker = worker
+    this.#clientPrivateKey = clientPrivateKey
     this.#userInfo = userInfo
     this.#logout = logout
     this.#promptSign = options.promptSign
@@ -93,22 +97,57 @@ export class Web3AuthClient implements WalletClient {
       throw new Error(`Failed to connect to ${loginProvider}`)
     }
 
-    const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, "hex"))
+    const clientPrivateKey = eccrypto.generatePrivate()
+    const clientPublicKey = eccrypto.getPublic(clientPrivateKey).toString("hex")
 
     const worker = new Worker(new URL("./worker.js", import.meta.url))
+    // Send client public key so the worker can verify our signatures, and get
+    // the worker public key for encrypting the wallet private key in the next
+    // init step.
+    let workerPublicKey: Buffer | undefined
     await sendAndListenOnce(
       worker,
       {
-        type: "init",
+        type: "init_1",
         payload: {
-          privateKey,
+          publicKey: clientPublicKey,
         },
       },
-      (data) => data.type === "ready"
+      async (data) => {
+        if (data.type === "ready_1") {
+          workerPublicKey = await decrypt(
+            clientPrivateKey,
+            data.payload.encryptedPublicKey
+          )
+          return true
+        }
+
+        return false
+      }
+    )
+    if (!workerPublicKey) {
+      throw new Error("Failed to authenticate with worker")
+    }
+
+    // Encrypt and send the wallet private key to the worker.
+    const encryptedPrivateKey = await eccrypto.encrypt(
+      workerPublicKey,
+      Buffer.from(privateKeyHex, "hex")
+    )
+    await sendAndListenOnce(
+      worker,
+      {
+        type: "init_2",
+        payload: {
+          encryptedPrivateKey,
+        },
+      },
+      (data) => data.type === "ready_2"
     )
 
     return new Web3AuthClient(
       worker,
+      clientPrivateKey,
       userInfo,
       client.logout.bind(client),
       options
@@ -135,6 +174,7 @@ export class Web3AuthClient implements WalletClient {
         this.#signers[chainId] = new Web3AuthSigner(
           chainInfo,
           this.#worker,
+          this.#clientPrivateKey,
           this.#promptSign
         )
       })
