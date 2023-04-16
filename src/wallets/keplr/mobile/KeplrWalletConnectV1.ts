@@ -258,8 +258,6 @@ export class KeplrWalletConnectV1 implements WalletClient {
   ): Promise<any> {
     // If mobile, attempt to open app to approve request.
     if (isMobile()) {
-      console.log(request)
-
       switch (request.method) {
         case "keplr_enable_wallet_connect_v1": {
           if (this.dontOpenAppOnEnable) break
@@ -350,8 +348,8 @@ export class KeplrWalletConnectV1 implements WalletClient {
     throw new Error("Not yet implemented")
   }
 
-  experimentalSuggestChain(_chainInfo: ChainInfo): Promise<void> {
-    throw new Error("Not yet implemented")
+  async experimentalSuggestChain(_chainInfo: ChainInfo): Promise<void> {
+    // Do nothing.
   }
 
   getEnigmaPubKey(_chainId: string): Promise<Uint8Array> {

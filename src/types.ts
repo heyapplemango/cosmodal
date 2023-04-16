@@ -9,6 +9,7 @@ import {
 } from "@cosmjs/stargate"
 import { ChainInfo, Keplr } from "@keplr-wallet/types"
 import WalletConnect from "@walletconnect/client"
+import { ReactNode } from "react"
 
 export interface IKeplrWalletConnectV1 extends Keplr {
   dontOpenAppOnEnable: boolean
@@ -155,10 +156,10 @@ export enum WalletConnectionStatus {
   AttemptingAutoConnection,
   // Don't call connect until this state is reached.
   ReadyForConnection,
+  SelectingWallet,
   Connecting,
   Connected,
   Resetting,
-  Errored,
 }
 
 export type UseWalletResponse = Partial<ConnectedWallet> &
@@ -226,4 +227,32 @@ declare global {
   interface Window {
     leap?: Keplr
   }
+}
+
+export type DefaultUiConfig = {
+  // Class names applied to various components for custom theming.
+  classNames?: ModalClassNames
+  // Custom close icon.
+  closeIcon?: ReactNode
+  // A custom loader to display in the modals, such as enabling the wallet.
+  renderLoader?: () => ReactNode
+  // Shows the enabling modal on autoconnect. The default behavior is to hide it
+  // on autoconnect, since most times it will silently succeed from a previous
+  // connection, and the enabling modal is distracting during first page load.
+  showConnectingModalOnAutoconnect?: boolean
+}
+
+export type UiProps = {
+  status: WalletConnectionStatus
+  wallets: Wallet[]
+  connectToWallet: (wallet: Wallet) => Promise<void>
+  reset: () => Promise<void>
+  // When status is AttemptingAutoConnect or Connecting, and this is defined,
+  // the UI should be prompting to connect to WalletConnect.
+  walletConnectUri?: string
+  // Cancel connecting and close the UI.
+  cancel: () => void
+
+  // Passed through the provider.
+  defaultUiConfig?: DefaultUiConfig
 }

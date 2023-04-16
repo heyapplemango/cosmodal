@@ -58,10 +58,7 @@ const Home: NextPage = () => {
               Address: <b>{address}</b>
             </p>
             <p>
-              Public key:{" "}
-              <b>
-                {publicKey?.hex ?? '<empty>'}
-              </b>
+              Public key: <b>{publicKey?.hex ?? "<empty>"}</b>
             </p>
             <button
               onClick={disconnect}
@@ -102,9 +99,14 @@ const Home: NextPage = () => {
           <>
             <button
               onClick={connect}
+              disabled={
+                walletStatus !== WalletConnectionStatus.ReadyForConnection
+              }
               className="px-3 py-2 rounded-md border border-gray bg-gray-200 hover:opacity-70"
             >
-              Connect
+              {walletStatus !== WalletConnectionStatus.ReadyForConnection
+                ? "Connecting"
+                : "Connect"}
             </button>
             {error ? (
               <p>{error instanceof Error ? error.message : `${error}`}</p>

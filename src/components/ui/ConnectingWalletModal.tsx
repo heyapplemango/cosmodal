@@ -2,13 +2,13 @@ import React, { FunctionComponent, ReactNode, useEffect, useState } from "react"
 
 import { BaseModal, BaseModalProps } from "./BaseModal"
 
-export interface EnablingWalletModalProps extends BaseModalProps {
+export interface ConnectingWalletModalProps extends BaseModalProps {
   renderLoader?: () => ReactNode
   reset: () => void
 }
 
-export const EnablingWalletModal: FunctionComponent<
-  EnablingWalletModalProps
+export const ConnectingWalletModal: FunctionComponent<
+  ConnectingWalletModalProps
 > = ({ isOpen, classNames, renderLoader, reset, ...props }) => {
   const [showHelp, setShowHelp] = useState(false)
   // Show help if timeout is reached.
@@ -27,7 +27,7 @@ export const EnablingWalletModal: FunctionComponent<
       classNames={classNames}
       isOpen={isOpen}
       maxWidth="24rem"
-      title="Enabling Wallet..."
+      title="Connecting wallet..."
       {...props}
     >
       {showHelp && (

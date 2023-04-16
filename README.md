@@ -110,22 +110,20 @@ export default Home
 
 This component takes the following properties:
 
-| Property                          | Type                                                             | Required | Description                                                                                                                                                                                                                     |
-| --------------------------------- | ---------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabledWalletTypes`              | `WalletType[]`                                                   | &#x2611; | Wallet types available for connection.                                                                                                                                                                                          |
-| `walletOptions`                   | `Partial<Record<WalletType, Record<string, any>>> \| undefined`  | &#x2611; | Optional wallet options to be passed to wallet clients.                                                                                                                                                                         |
-| `defaultChainId`                  | `string`                                                         | &#x2611; | Chain ID to initially connect to and selected by default if nothing is passed to the hook. Must be present in one of the objects in `chainInfoList`.                                                                            |
-| `chainInfoOverrides`              | `ChainInfoOverrides \| undefined`                                |          | List or getter of additional or replacement ChainInfo objects. These will take precedent over internal definitions by comparing `chainId`.                                                                                      |
-| `classNames`                      | `ModalClassNames`                                                |          | Class names applied to various components for custom theming.                                                                                                                                                                   |
-| `closeIcon`                       | `ReactNode`                                                      |          | Custom close icon.                                                                                                                                                                                                              |
-| `walletConnectClientMeta`         | `IClientMeta`                                                    |          | Descriptive info about the React app which gets displayed when enabling a WalletConnect wallet (e.g. name, image, etc.).                                                                                                        |
-| `renderLoader`                    | `() => ReactNode`                                                |          | A custom loader to display in a few modals, such as when enabling the wallet.                                                                                                                                                   |
-| `preselectedWalletType`           | `WalletType`                                                     |          | When set to a valid wallet type, the connect function will skip the selection modal and attempt to connect to this wallet immediately.                                                                                          |
-| `localStorageKey`                 | `string`                                                         |          | localStorage key for saving, loading, and auto connecting to a wallet.                                                                                                                                                          |
-| `onKeystoreChangeEvent`           | `(event: Event) => unknown`                                      |          | Callback that will be attached as a listener to the `keplr_keystorechange` event on the window object.                                                                                                                          |
-| `getSigningCosmWasmClientOptions` | `SigningClientGetter<SigningCosmWasmClientOptions> \| undefined` |          | Getter for options passed to SigningCosmWasmClient on connection.                                                                                                                                                               |
-| `getSigningStargateClientOptions` | `SigningClientGetter<SigningStargateClientOptions> \| undefined` |          | Getter for options passed to SigningStargateClient on connection.                                                                                                                                                               |
-| `showEnablingModalOnAutoconnect`  | `boolean \| undefined`                                           |          | Shows the enabling modal on autoconnect. The default behavior is to hide it on autoconnect, since most times it will silently succeed from a previous connection, and the enabling modal is distracting during first page load. |
+| Property                          | Type                                                             | Required | Description                                                                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabledWalletTypes`              | `WalletType[]`                                                   | &#x2611; | Wallet types available for connection.                                                                                                               |
+| `walletOptions`                   | `Partial<Record<WalletType, Record<string, any>>> \| undefined`  | &#x2611; | Optional wallet options to be passed to wallet clients.                                                                                              |
+| `defaultChainId`                  | `string`                                                         | &#x2611; | Chain ID to initially connect to and selected by default if nothing is passed to the hook. Must be present in one of the objects in `chainInfoList`. |
+| `chainInfoOverrides`              | `ChainInfoOverrides \| undefined`                                |          | List or getter of additional or replacement ChainInfo objects. These will take precedent over internal definitions by comparing `chainId`.           |
+| `walletConnectClientMeta`         | `IClientMeta`                                                    |          | Descriptive info about the React app which gets displayed when enabling a WalletConnect wallet (e.g. name, image, etc.).                             |
+| `preselectedWalletType`           | `WalletType`                                                     |          | When set to a valid wallet type, the connect function will skip the selection modal and attempt to connect to this wallet immediately.               |
+| `localStorageKey`                 | `string`                                                         |          | localStorage key for saving, loading, and auto connecting to a wallet.                                                                               |
+| `onKeystoreChangeEvent`           | `(event: Event) => unknown`                                      |          | Callback that will be attached as a listener to the `keplr_keystorechange` event on the window object.                                               |
+| `getSigningCosmWasmClientOptions` | `SigningClientGetter<SigningCosmWasmClientOptions> \| undefined` |          | Getter for options passed to SigningCosmWasmClient on connection.                                                                                    |
+| `getSigningStargateClientOptions` | `SigningClientGetter<SigningStargateClientOptions> \| undefined` |          | Getter for options passed to SigningStargateClient on connection.                                                                                    |
+| `defaultUiConfig`                 | `DefaultUiConfig \| undefined`                                   |          | Default UI config.                                                                                                                                   |
+| `CustomUi`                        | `ComponentType<UiProps> \| undefined`                            |          | Custom UI. If present, default UI will not show.                                                                                                     |
 
 ### useWalletManager
 
@@ -232,7 +230,6 @@ enum WalletConnectionStatus {
   Connecting,
   Connected,
   Resetting,
-  Errored,
 }
 
 type SigningClientGetter<T> = (
@@ -278,6 +275,8 @@ interface IWalletManagerContext {
 interface WalletManagerProviderProps {
   // Wallet types available for connection.
   enabledWalletTypes: WalletType[]
+  // Optional wallet options for each wallet type.
+  walletOptions?: Partial<Record<WalletType, Record<string, any>>>
   // Chain ID to initially connect to and selected by default if nothing
   // is passed to the hook. Must be present in one of the objects in
   // `chainInfoList`.
@@ -285,15 +284,9 @@ interface WalletManagerProviderProps {
   // List or getter of additional or replacement ChainInfo objects. These
   // will take precedent over internal definitions by comparing `chainId`.
   chainInfoOverrides?: ChainInfoOverrides
-  // Class names applied to various components for custom theming.
-  classNames?: ModalClassNames
-  // Custom close icon.
-  closeIcon?: ReactNode
   // Descriptive info about the webapp which gets displayed when enabling a
   // WalletConnect wallet (e.g. name, image, etc.).
   walletConnectClientMeta?: IClientMeta
-  // A custom loader to display in the modals, such as enabling the wallet.
-  renderLoader?: () => ReactNode
   // When set to a valid wallet type, the connect function will skip the
   // selection modal and attempt to connect to this wallet immediately.
   preselectedWalletType?: `${WalletType}`
@@ -307,10 +300,37 @@ interface WalletManagerProviderProps {
   getSigningCosmWasmClientOptions?: SigningClientGetter<SigningCosmWasmClientOptions>
   // Getter for options passed to SigningStargateClient on connection.
   getSigningStargateClientOptions?: SigningClientGetter<SigningStargateClientOptions>
-  // Shows the enabling modal on autoconnect. The default behavior
-  // is to hide it on autoconnect, since most times it will silently succeed
-  // from a previous connection, and the enabling modal is distracting during
-  // first page load.
-  showEnablingModalOnAutoconnect?: boolean
+  // Default UI config.
+  defaultUiConfig?: DefaultUiConfig
+  // Custom UI. If present, default UI will not show.
+  CustomUi?: ComponentType<UiProps>
+}
+
+type DefaultUiConfig = {
+  // Class names applied to various components for custom theming.
+  classNames?: ModalClassNames
+  // Custom close icon.
+  closeIcon?: ReactNode
+  // A custom loader to display in the modals, such as enabling the wallet.
+  renderLoader?: () => ReactNode
+  // Shows the enabling modal on autoconnect. The default behavior is to hide it
+  // on autoconnect, since most times it will silently succeed from a previous
+  // connection, and the enabling modal is distracting during first page load.
+  showConnectingModalOnAutoconnect?: boolean
+}
+
+type UiProps = {
+  status: WalletConnectionStatus
+  wallets: Wallet[]
+  connectToWallet: (wallet: Wallet) => Promise<void>
+  reset: () => Promise<void>
+  // When status is AttemptingAutoConnect or Connecting, and this is defined,
+  // the UI should be prompting to connect to WalletConnect.
+  walletConnectUri?: string
+  // Cancel connecting and close the UI.
+  cancel: () => void
+
+  // Passed through the provider.
+  defaultUiConfig?: DefaultUiConfig
 }
 ```

@@ -35,7 +35,9 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
       WalletType.Discord,
       WalletType.Twitter,
     ]}
-    renderLoader={() => <p>Loading...</p>}
+    defaultUiConfig={{
+      renderLoader: () => <p>Loading...</p>,
+    }}
     localStorageKey={LOCAL_STORAGE_KEY}
     defaultChainId={ChainInfoID.Uni6}
     getSigningCosmWasmClientOptions={(chainInfo) => ({
