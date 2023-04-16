@@ -514,7 +514,10 @@ export const WalletManagerProvider: FunctionComponent<
       <UI
         cancel={() => disconnect().finally(_cleanupAfterConnection)}
         connectToWallet={_connectToWallet}
+        connectedWallet={connectedWallet}
+        connectingWallet={connectingWallet}
         defaultUiConfig={defaultUiConfig}
+        error={error}
         reset={_reset}
         status={status}
         walletConnectUri={walletConnectUri}

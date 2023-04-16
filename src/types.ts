@@ -243,16 +243,28 @@ export type DefaultUiConfig = {
 }
 
 export type UiProps = {
-  status: WalletConnectionStatus
+  // Wallets available to connect to.
   wallets: Wallet[]
+  // Initiate connection to a wallet.
   connectToWallet: (wallet: Wallet) => Promise<void>
-  reset: () => Promise<void>
   // When status is AttemptingAutoConnect or Connecting, and this is defined,
   // the UI should be prompting to connect to WalletConnect.
   walletConnectUri?: string
   // Cancel connecting and close the UI.
   cancel: () => void
-
+  // Reset connection processs in case it got stuck, reconnecting to the same
+  // wallet that is currently being connected or reloading the page if no wallet
+  // is being connected to.
+  reset: () => Promise<void>
+  // The current connection status.
+  status: WalletConnectionStatus
+  // The wallet being connected to, if status is AttemptingAutoConnect or
+  // Connecting. This should be set right after `connectToWallet` is called.
+  connectingWallet?: Wallet
+  // The wallet currently connected, if status is Connected.
+  connectedWallet?: ConnectedWallet
+  // The error that occurred on the most recent connection attempt.
+  error?: unknown
   // Passed through the provider.
   defaultUiConfig?: DefaultUiConfig
 }
