@@ -36,7 +36,7 @@ export type WalletClient = Pick<
 export enum WalletType {
   Leap = "leap",
   Keplr = "keplr",
-  WalletConnectKeplr = "walletconnect_keplr",
+  KeplrMobile = "keplr_mobile",
 
   // Web3Auth
   Google = "google",
@@ -55,7 +55,7 @@ export interface Wallet {
   // The URL of the wallet logo.
   imageUrl: string
   // A function that returns an instantiated wallet client, with
-  // `walletConnect` passed if `type === WalletType.WalletConnectKeplr`.
+  // `walletConnect` passed if `type === WalletType.KeplrMobile`.
   getClient: (
     chainInfo: ChainInfo,
     walletConnect?: WalletConnect,

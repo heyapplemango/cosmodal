@@ -22,7 +22,7 @@ describe("display status", () => {
       render(
         <WalletManagerProvider
           defaultChainId={ChainInfoID.Juno1}
-          enabledWalletTypes={[WalletType.Keplr, WalletType.WalletConnectKeplr]}
+          enabledWalletTypes={[WalletType.Keplr, WalletType.KeplrMobile]}
         >
           <DisplayStatus />
         </WalletManagerProvider>

@@ -1,9 +1,9 @@
 import { Wallet, WalletType } from "../../../types"
 
 export const KeplrMobileWallet: Wallet = {
-  type: WalletType.WalletConnectKeplr,
-  name: "WalletConnect",
-  description: "Keplr Mobile",
+  type: WalletType.KeplrMobile,
+  name: "Keplr Mobile",
+  description: "via WalletConnect",
   imageUrl:
     "https://bafkreibkroyj2jbsyhiybw44hcsljfftjwa2iyk32ncauk5sygz2lc5hyi.ipfs.nftstorage.link",
   getClient: async (chainInfo, walletConnect) => {

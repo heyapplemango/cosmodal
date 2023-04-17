@@ -53,7 +53,7 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
     enabledWalletTypes={[
       WalletType.Leap,
       WalletType.Keplr,
-      WalletType.WalletConnectKeplr,
+      WalletType.KeplrMobile,
     ]}
     walletConnectClientMeta={{
       name: "CosmodalExampleDAPP",
@@ -195,7 +195,7 @@ type WalletClient = Keplr | KeplrWalletConnectV1
 enum WalletType {
   Leap = "leap",
   Keplr = "keplr",
-  WalletConnectKeplr = "walletconnect_keplr",
+  KeplrMobile = "keplr_mobile",
 }
 
 interface ConnectedWallet {

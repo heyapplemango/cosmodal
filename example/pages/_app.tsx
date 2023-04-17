@@ -29,7 +29,7 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
     enabledWalletTypes={[
       WalletType.Leap,
       WalletType.Keplr,
-      WalletType.WalletConnectKeplr,
+      WalletType.KeplrMobile,
       WalletType.Google,
       WalletType.Apple,
       WalletType.Discord,
