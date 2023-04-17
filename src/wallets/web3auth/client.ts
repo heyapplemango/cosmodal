@@ -11,6 +11,10 @@ import { Web3AuthSigner } from "./signers"
 import { Web3AuthClientOptions } from "./types"
 import { connectClientAndProvider, decrypt, sendAndListenOnce } from "./utils"
 
+// In case these get overwritten by an attacker.
+const terminate =
+  typeof Worker !== "undefined" ? Worker.prototype.terminate : undefined
+
 export class Web3AuthClient implements WalletClient {
   loginProvider: LOGIN_PROVIDER_TYPE
 
@@ -202,6 +206,7 @@ export class Web3AuthClient implements WalletClient {
     } catch (err) {
       console.warn("Web3Auth failed to logout:", err)
     }
+    terminate?.call(this.#worker)
     this.#signers = {}
   }
 
