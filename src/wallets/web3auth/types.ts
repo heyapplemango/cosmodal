@@ -48,6 +48,7 @@ export type ToWorkerMessage =
   | {
       type: "request_accounts"
       payload: {
+        id: number
         chainBech32Prefix: string
       }
     }
@@ -82,6 +83,7 @@ export type FromWorkerMessage =
   | {
       type: "accounts"
       payload: {
+        id: number
         response:
           | {
               type: "success"
@@ -92,6 +94,7 @@ export type FromWorkerMessage =
               error: string
             }
       }
+      signature: Uint8Array
     }
   | {
       type: "sign"
@@ -111,4 +114,5 @@ export type FromWorkerMessage =
               value: AminoSignResponse
             }
       }
+      signature: Uint8Array
     }

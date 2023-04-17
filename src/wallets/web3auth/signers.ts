@@ -19,39 +19,51 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
   chainInfo: ChainInfo
   #worker: Worker
   #clientPrivateKey: Buffer
+  #workerPublicKey: Buffer
   #promptSign: PromptSign
 
   constructor(
     chainInfo: ChainInfo,
     worker: Worker,
     clientPrivateKey: Buffer,
+    workerPublicKey: Buffer,
     promptSign: PromptSign
   ) {
     this.chainInfo = chainInfo
     this.#worker = worker
     this.#clientPrivateKey = clientPrivateKey
+    this.#workerPublicKey = workerPublicKey
     this.#promptSign = promptSign
   }
 
   async getAccounts(): Promise<readonly AccountData[]> {
     let accounts: AccountData[] | undefined
     // Should not resolve until accounts are received.
+    const id = Date.now()
     await sendAndListenOnce(
       this.#worker,
       {
         type: "request_accounts",
         payload: {
+          id,
           chainBech32Prefix: this.chainInfo.bech32Config.bech32PrefixAccAddr,
         },
       },
-      (data) => {
-        if (data.type === "accounts") {
+      async (data) => {
+        if (data.type === "accounts" && data.payload.id === id) {
+          // Verify signature.
+          await eccrypto.verify(
+            this.#workerPublicKey,
+            hashObject(data.payload),
+            Buffer.from(data.signature)
+          )
+
           if (data.payload.response.type === "success") {
             accounts = data.payload.response.accounts
+            return true
           } else {
             throw new Error(data.payload.response.error)
           }
-          return true
         }
 
         return false
@@ -99,8 +111,15 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
     )
 
     // Should not resolve until response is received.
-    await sendAndListenOnce(this.#worker, message, (data) => {
+    await sendAndListenOnce(this.#worker, message, async (data) => {
       if (data.type === "sign" && data.payload.id === id) {
+        // Verify signature.
+        await eccrypto.verify(
+          this.#workerPublicKey,
+          hashObject(data.payload),
+          Buffer.from(data.signature)
+        )
+
         if (data.payload.response.type === "error") {
           throw new Error(data.payload.response.value)
         }
@@ -157,8 +176,15 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
     )
 
     // Should not resolve until response is received.
-    await sendAndListenOnce(this.#worker, message, (data) => {
+    await sendAndListenOnce(this.#worker, message, async (data) => {
       if (data.type === "sign" && data.payload.id === id) {
+        // Verify signature.
+        await eccrypto.verify(
+          this.#workerPublicKey,
+          hashObject(data.payload),
+          Buffer.from(data.signature)
+        )
+
         if (data.payload.response.type === "error") {
           throw new Error(data.payload.response.value)
         }

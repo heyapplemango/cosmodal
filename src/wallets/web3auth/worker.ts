@@ -69,6 +69,7 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
   }
 
   if (data.type === "request_accounts") {
+    let payload
     try {
       const accounts = await (
         await DirectSecp256k1Wallet.fromKey(
@@ -77,30 +78,34 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
         )
       ).getAccounts()
 
-      return self.postMessage({
-        type: "accounts",
-        payload: {
-          response: {
-            type: "success",
-            accounts,
-          },
+      payload = {
+        id: data.payload.id,
+        response: {
+          type: "success",
+          accounts,
         },
-      })
+      }
     } catch (err) {
       console.error("Web3Auth worker accounts error", err)
-      return self.postMessage({
-        type: "accounts",
-        payload: {
-          response: {
-            type: "error",
-            error: err instanceof Error ? err.message : `${err}`,
-          },
+      payload = {
+        id: data.payload.id,
+        response: {
+          type: "error",
+          error: err instanceof Error ? err.message : `${err}`,
         },
-      })
+      }
     }
+
+    const signature = await eccrypto.sign(workerPrivateKey, hashObject(payload))
+    return self.postMessage({
+      type: "accounts",
+      payload,
+      signature,
+    })
   }
 
   if (data.type === "request_sign") {
+    let payload
     try {
       // Verify signature.
       await eccrypto.verify(
@@ -116,16 +121,14 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
             data.payload.chainBech32Prefix
           )
         ).signDirect(data.payload.signerAddress, data.payload.data.value)
-        self.postMessage({
-          type: "sign",
-          payload: {
-            id: data.payload.id,
-            response: {
-              type: "direct",
-              value: response,
-            },
+
+        payload = {
+          id: data.payload.id,
+          response: {
+            type: "direct",
+            value: response,
           },
-        })
+        }
       } else if (data.payload.data.type === "amino") {
         const response = await (
           await Secp256k1Wallet.fromKey(
@@ -133,31 +136,34 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
             data.payload.chainBech32Prefix
           )
         ).signAmino(data.payload.signerAddress, data.payload.data.value)
-        self.postMessage({
-          type: "sign",
-          payload: {
-            id: data.payload.id,
-            response: {
-              type: "amino",
-              value: response,
-            },
+
+        payload = {
+          id: data.payload.id,
+          response: {
+            type: "amino",
+            value: response,
           },
-        })
+        }
       } else {
         throw new Error("Invalid sign data type")
       }
     } catch (err) {
       console.error("Web3Auth worker sign error", err)
-      self.postMessage({
-        type: "sign",
-        payload: {
-          id: data.payload.id,
-          response: {
-            type: "error",
-            value: err instanceof Error ? err.message : `${err}`,
-          },
+
+      payload = {
+        id: data.payload.id,
+        response: {
+          type: "error",
+          value: err instanceof Error ? err.message : `${err}`,
         },
-      })
+      }
     }
+
+    const signature = await eccrypto.sign(workerPrivateKey, hashObject(payload))
+    return self.postMessage({
+      type: "sign",
+      payload,
+      signature,
+    })
   }
 }

@@ -20,6 +20,7 @@ export class Web3AuthClient implements WalletClient {
 
   #worker: Worker
   #clientPrivateKey: Buffer
+  #workerPublicKey: Buffer
   #userInfo: Partial<UserInfo>
   #options: Web3AuthClientOptions
 
@@ -32,12 +33,14 @@ export class Web3AuthClient implements WalletClient {
     loginProvider: LOGIN_PROVIDER_TYPE,
     worker: Worker,
     clientPrivateKey: Buffer,
+    workerPublicKey: Buffer,
     userInfo: Partial<UserInfo>,
     options: Web3AuthClientOptions
   ) {
     this.loginProvider = loginProvider
     this.#worker = worker
     this.#clientPrivateKey = clientPrivateKey
+    this.#workerPublicKey = workerPublicKey
     this.#userInfo = userInfo
     this.#options = Object.freeze(options)
   }
@@ -156,6 +159,7 @@ export class Web3AuthClient implements WalletClient {
       loginProvider,
       worker,
       clientPrivateKey,
+      workerPublicKey,
       userInfo,
       options
     )
@@ -182,6 +186,7 @@ export class Web3AuthClient implements WalletClient {
           chainInfo,
           this.#worker,
           this.#clientPrivateKey,
+          this.#workerPublicKey,
           this.#options.promptSign
         )
       })
