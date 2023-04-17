@@ -3,26 +3,21 @@ import { fromBech32 } from "@cosmjs/encoding"
 import { OfflineDirectSigner } from "@cosmjs/proto-signing"
 import { ChainInfo } from "@keplr-wallet/types"
 import eccrypto from "@toruslabs/eccrypto"
-import {
-  LOGIN_PROVIDER_TYPE,
-  OPENLOGIN_NETWORK,
-  UX_MODE,
-} from "@toruslabs/openlogin"
-import { CHAIN_NAMESPACES, UserInfo, WALLET_ADAPTERS } from "@web3auth/base"
-import { Web3AuthNoModal } from "@web3auth/no-modal"
-import { OpenloginAdapter } from "@web3auth/openlogin-adapter"
+import { LOGIN_PROVIDER_TYPE, OPENLOGIN_NETWORK } from "@toruslabs/openlogin"
+import { UserInfo } from "@web3auth/base"
 
 import { WalletClient } from "../../types"
 import { Web3AuthSigner } from "./signers"
-import { PromptSign, Web3AuthClientOptions } from "./types"
-import { decrypt, sendAndListenOnce } from "./utils"
+import { Web3AuthClientOptions } from "./types"
+import { connectClientAndProvider, decrypt, sendAndListenOnce } from "./utils"
 
 export class Web3AuthClient implements WalletClient {
+  loginProvider: LOGIN_PROVIDER_TYPE
+
   #worker: Worker
   #clientPrivateKey: Buffer
   #userInfo: Partial<UserInfo>
-  #logout: () => Promise<void>
-  #promptSign: PromptSign
+  #options: Web3AuthClientOptions
 
   // Map chain ID to chain info.
   chainInfo: Record<string, ChainInfo | undefined> = {}
@@ -30,17 +25,17 @@ export class Web3AuthClient implements WalletClient {
   #signers: Record<string, Web3AuthSigner | undefined> = {}
 
   constructor(
+    loginProvider: LOGIN_PROVIDER_TYPE,
     worker: Worker,
     clientPrivateKey: Buffer,
     userInfo: Partial<UserInfo>,
-    logout: () => Promise<void>,
     options: Web3AuthClientOptions
   ) {
+    this.loginProvider = loginProvider
     this.#worker = worker
     this.#clientPrivateKey = clientPrivateKey
     this.#userInfo = userInfo
-    this.#logout = logout
-    this.#promptSign = options.promptSign
+    this.#options = Object.freeze(options)
   }
 
   static async setup(
@@ -65,31 +60,20 @@ export class Web3AuthClient implements WalletClient {
 
     const options = _options as Web3AuthClientOptions
 
-    const client = new Web3AuthNoModal({
-      ...options.client,
-      chainConfig: {
-        ...options.client.chainConfig,
-        chainNamespace: CHAIN_NAMESPACES.OTHER,
-      },
-    })
+    // Don't keep any reference to these around after this function since they
+    // internally store a reference to the private key. Once we have the private
+    // key, send it to the worker and forget about it. After this function, the
+    // only reference to the private key is in the worker, and this client and
+    // provider will be destroyed by the garbage collector, hopefully ASAP.
+    const { client, provider } = await connectClientAndProvider(
+      loginProvider,
+      options
+    )
 
-    const openloginAdapter = new OpenloginAdapter({
-      adapterSettings: {
-        uxMode: UX_MODE.POPUP,
-      },
-    })
-    client.configureAdapter(openloginAdapter)
-
-    await client.init()
-
-    const provider =
-      client.provider ??
-      (await client.connectTo(WALLET_ADAPTERS.OPENLOGIN, {
-        loginProvider,
-      }))
-
+    // Get connected user info.
     const userInfo = await client.getUserInfo()
 
+    // Get the private key.
     const privateKeyHex = await provider?.request({
       method: "private_key",
     })
@@ -97,13 +81,19 @@ export class Web3AuthClient implements WalletClient {
       throw new Error(`Failed to connect to ${loginProvider}`)
     }
 
+    // Generate a private key for this client to interact with the worker.
     const clientPrivateKey = eccrypto.generatePrivate()
     const clientPublicKey = eccrypto.getPublic(clientPrivateKey).toString("hex")
 
+    // Spawn a new worker that will handle the private key and signing.
     const worker = new Worker(new URL("./worker.js", import.meta.url))
-    // Send client public key so the worker can verify our signatures, and get
-    // the worker public key for encrypting the wallet private key in the next
-    // init step.
+
+    // Begin two-step handshake to authenticate with the worker and exchange
+    // communication public keys as well as the wallet private key.
+
+    // 1. Send client public key so the worker can verify our signatures, and
+    //    get the worker public key for encrypting the wallet private key in the
+    //    next init step.
     let workerPublicKey: Buffer | undefined
     await sendAndListenOnce(
       worker,
@@ -131,7 +121,9 @@ export class Web3AuthClient implements WalletClient {
       throw new Error("Failed to authenticate with worker")
     }
 
-    // Encrypt and send the wallet private key to the worker.
+    // 2. Encrypt and send the wallet private key to the worker. This is the
+    //    last usage of `workerPublicKey`, so ideally it gets garbage collected
+    //    ASAP.
     const encryptedPrivateKey = await eccrypto.encrypt(
       workerPublicKey,
       Buffer.from(privateKeyHex, "hex")
@@ -155,11 +147,12 @@ export class Web3AuthClient implements WalletClient {
       }
     )
 
+    // Store this client's private key for future message sending signatures.
     return new Web3AuthClient(
+      loginProvider,
       worker,
       clientPrivateKey,
       userInfo,
-      client.logout.bind(client),
       options
     )
   }
@@ -185,14 +178,30 @@ export class Web3AuthClient implements WalletClient {
           chainInfo,
           this.#worker,
           this.#clientPrivateKey,
-          this.#promptSign
+          this.#options.promptSign
         )
       })
     )
   }
 
   async disconnect() {
-    await this.#logout()
+    // Attempt to logout by first connecting a new client and then logging out
+    // if connected. It does not attempt to log in if it cannot automatically
+    // login from the cached session. This removes the need to keep the client
+    // around, which internally keeps a reference to the private key.
+    try {
+      const { client } = await connectClientAndProvider(
+        this.loginProvider,
+        this.#options,
+        { dontAttemptLogin: true }
+      )
+
+      await client.logout({
+        cleanup: true,
+      })
+    } catch (err) {
+      console.warn("Web3Auth failed to logout:", err)
+    }
     this.#signers = {}
   }
 
