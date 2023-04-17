@@ -81,7 +81,13 @@ communication channel
 between the main and worker threads by overriding the Worker prototype. Because
 of this, we must treat the channel as untrusted, encrypting sensitive data (the
 wallet private key) and proving we are really the ones asking for a message to
-be signed.
+be signed. To protect against this, a reference to
+`Worker.prototype.postMessage` is stored at the top of the file so that it is
+saved when the code is imported, hopefully grabbing a reference before an
+attacker is able to overwrite it with a malicious implementation. This may or
+may not be reliable, depending on the other in which code gets executed and the
+nature of the specific XSS attack, but it should help. On top of this,
+encryption is used over this communication channel, described below.
 
 Both the main and worker threads create their own elliptic curve (secp256k1)
 private/public keypair to communicate with each other, and they perform a
@@ -136,3 +142,22 @@ isolated environment to handle signing requests, and the two threads communicate
 via encrypted or signed messages (using elliptic curve secp256k1 keys) to ensure
 a compromised communication channel cannot be used to steal the private key or
 sign arbitrary messages.
+
+### Philosophy
+
+This security is based heavily on Defense in Depth, which is the security
+principle that states that a system should have several independent layers of
+security, providing redundancy in case of unexpected failure. We don't *need* to
+authenticate the communications between the client and the worker, because if JS
+variables truly are private within closures, the original reference to
+`Worker.prototype.postMessage` should be safe. However, if that reference is
+compromised, we want to make it harder for the attacker to simply MITM the
+communication channel by setting up an authentication scheme. If the attacker
+compromises the `postMessage` implementation from the very beginning, there's
+not much we can do, other than force the XSS attack to depend on a lot of
+libraries and code to succeed, which would make it that much harder to inject.
+
+The safety of all this, the assumptions that are being made, heavily depend on
+the JS VM being used, which is out of our control. In this security context,
+layering security is the best we can do, and we can only hope that there are no
+major flaws outside of our control.
