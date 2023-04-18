@@ -23,7 +23,7 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
     walletConnectClientMeta={{
       name: "CosmodalExampleDApp",
       description: "A dApp using the @noahsaso/cosmodal library.",
-      url: "https://noahsaso-cosmodal.vercel.app",
+      url: "https://cosmodal-noahsaso.vercel.app/",
       icons: ["https://moonphase.is/image.svg"],
     }}
     enabledWalletTypes={[

@@ -4,7 +4,7 @@ A wallet connector with mobile WalletConnect support for the Cosmos ecosystem.
 
 ## Example
 
-The example is deployed on Vercel at https://noahsaso-cosmodal.vercel.app.
+The example is deployed on Vercel at https://cosmodal-noahsaso.vercel.app/
 
 It can also be run locally using these commands:
 
