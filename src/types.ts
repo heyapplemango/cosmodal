@@ -259,11 +259,15 @@ export type UiProps = {
   // The current connection status.
   status: WalletConnectionStatus
   // The wallet being connected to, if status is AttemptingAutoConnect or
-  // Connecting. This should be set right after `connectToWallet` is called.
+  // Connecting, or that was most recently attempted to be connected to. This
+  // should be set right after `connectToWallet` is called. This is never unset,
+  // so the UI can display the wallet that was most recently attempted to be
+  // connected to, which helps determine which wallet the error corresponds to.
   connectingWallet?: Wallet
   // The wallet currently connected, if status is Connected.
   connectedWallet?: ConnectedWallet
-  // The error that occurred on the most recent connection attempt.
+  // The error that occurred on the most recent connection attempt. This
+  // corresponds to the wallet in `connectingWallet`.
   error?: unknown
   // Passed through the provider.
   defaultUiConfig?: DefaultUiConfig
