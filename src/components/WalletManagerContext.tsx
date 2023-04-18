@@ -60,8 +60,7 @@ export const useWallet = (
     if (
       !shouldConnectToChainId ||
       chainIdStatus === WalletConnectionStatus.Connecting ||
-      chainIdStatus === WalletConnectionStatus.Connected ||
-      chainIdStatus === WalletConnectionStatus.Errored
+      chainIdStatus === WalletConnectionStatus.Connected
     ) {
       return
     }
@@ -88,7 +87,6 @@ export const useWallet = (
       } catch (error) {
         console.error(error)
         setChainIdError(error)
-        setChainIdStatus(WalletConnectionStatus.Errored)
       }
     }
 

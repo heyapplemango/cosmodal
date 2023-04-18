@@ -58,15 +58,23 @@ const WalletRow = styled.div`
   align-items: center;
   background-color: rgb(229 231 235);
   box-shadow: inset 0 0 0 1px rgb(156 163 175);
+  cursor: pointer;
 
+  transition: opacity 0.2s ease;
+  opacity: 1;
   &:hover {
-    cursor: pointer;
+    opacity: 0.8;
+  }
+  &:active {
+    opacity: 0.7;
   }
 `
 
 const WalletIconImg = styled.img`
   width: 4rem;
   height: 4rem;
+  object-fit: contain;
+  object-position: center;
 `
 
 const WalletInfo = styled.div`

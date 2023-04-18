@@ -12,13 +12,9 @@ export const getConnectedWalletInfo = async (
   signingCosmWasmClientOptions?: SigningCosmWasmClientOptions,
   signingStargateClientOptions?: SigningStargateClientOptions
 ): Promise<ConnectedWallet> => {
-  // Only Keplr/Leap browser extensions support suggesting chain.
-  // Not WalletConnect nor embedded Keplr Mobile web.
-  if (
-    (wallet.type === WalletType.Keplr && client.mode !== "mobile-web") ||
-    wallet.type === WalletType.Leap
-  ) {
-    await client.experimentalSuggestChain(chainInfo)
+  // Call experimentalSuggestChain if defined, except for Keplr Mobile web.
+  if (wallet.type !== WalletType.Keplr || client.mode !== "mobile-web") {
+    await client.experimentalSuggestChain?.(chainInfo)
   }
 
   await client.enable(chainInfo.chainId)

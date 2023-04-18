@@ -33,7 +33,7 @@ import { Buffer } from "buffer"
 import deepmerge from "deepmerge"
 import { SecretUtils } from "secretjs/types/enigmautils"
 
-import { IKeplrWalletConnectV1 } from "../types"
+import { WalletClient } from "../../../types"
 
 // VersionFormatRegExp checks if a chainID is in the format required for parsing versions
 // The chainID should be in the form: `{identifier}-{version}`
@@ -77,7 +77,7 @@ export type KeplrKeystoreMayChangedEventParam = {
   }[]
 }
 
-export class KeplrWalletConnectV1 implements IKeplrWalletConnectV1 {
+export class KeplrWalletConnectV1 implements WalletClient {
   kvStore: KVStore
   onBeforeSendRequest?: (
     request: Partial<IJsonRpcRequest>,
@@ -119,6 +119,16 @@ export class KeplrWalletConnectV1 implements IKeplrWalletConnectV1 {
     })
 
     connector.on("call_request", this.onCallReqeust)
+  }
+
+  async disconnect(): Promise<void> {
+    // Remove session from localStorage since it tries to use the same session
+    // as last time on future attempts. When the user manually disconnects, we
+    // want to clear this state in case something is wrong with the session or
+    // they are trying to change their wallet and it won't detect the change.
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("walletconnect")
+    }
   }
 
   async disable(_chainIds: string[]): Promise<void> {
@@ -258,8 +268,6 @@ export class KeplrWalletConnectV1 implements IKeplrWalletConnectV1 {
   ): Promise<any> {
     // If mobile, attempt to open app to approve request.
     if (isMobile()) {
-      console.log(request)
-
       switch (request.method) {
         case "keplr_enable_wallet_connect_v1": {
           if (this.dontOpenAppOnEnable) break
@@ -350,8 +358,8 @@ export class KeplrWalletConnectV1 implements IKeplrWalletConnectV1 {
     throw new Error("Not yet implemented")
   }
 
-  experimentalSuggestChain(_chainInfo: ChainInfo): Promise<void> {
-    throw new Error("Not yet implemented")
+  async experimentalSuggestChain(_chainInfo: ChainInfo): Promise<void> {
+    // Do nothing.
   }
 
   getEnigmaPubKey(_chainId: string): Promise<Uint8Array> {

@@ -9,17 +9,40 @@ import {
 } from "@cosmjs/stargate"
 import { ChainInfo, Keplr } from "@keplr-wallet/types"
 import WalletConnect from "@walletconnect/client"
+import { ReactNode } from "react"
 
 export interface IKeplrWalletConnectV1 extends Keplr {
   dontOpenAppOnEnable: boolean
 }
 
-export type WalletClient = Keplr | IKeplrWalletConnectV1
+export type WalletClient = Pick<
+  Keplr,
+  | "enable"
+  | "getOfflineSigner"
+  | "getOfflineSignerAuto"
+  | "getOfflineSignerOnlyAmino"
+> &
+  Partial<Pick<Keplr, "mode" | "experimentalSuggestChain">> & {
+    getKey: (chainId: string) => Promise<{
+      name: string
+      algo: string
+      pubKey: Uint8Array
+      address: Uint8Array
+      bech32Address: string
+    }>
+    disconnect?: () => Promise<void>
+  }
 
 export enum WalletType {
   Leap = "leap",
   Keplr = "keplr",
-  WalletConnectKeplr = "walletconnect_keplr",
+  KeplrMobile = "keplr_mobile",
+
+  // Web3Auth
+  Google = "google",
+  Apple = "apple",
+  Discord = "discord",
+  Twitter = "twitter",
 }
 
 export interface Wallet {
@@ -32,10 +55,12 @@ export interface Wallet {
   // The URL of the wallet logo.
   imageUrl: string
   // A function that returns an instantiated wallet client, with
-  // `walletConnect` passed if `type === WalletType.WalletConnectKeplr`.
+  // `walletConnect` passed if `type === WalletType.KeplrMobile`.
   getClient: (
     chainInfo: ChainInfo,
-    walletConnect?: WalletConnect
+    walletConnect?: WalletConnect,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    options?: Record<string, any>
   ) => Promise<WalletClient | undefined>
   // A function that returns the function to retrieve the `OfflineSigner`
   // for this wallet.
@@ -131,10 +156,10 @@ export enum WalletConnectionStatus {
   AttemptingAutoConnection,
   // Don't call connect until this state is reached.
   ReadyForConnection,
+  SelectingWallet,
   Connecting,
   Connected,
   Resetting,
-  Errored,
 }
 
 export type UseWalletResponse = Partial<ConnectedWallet> &
@@ -202,4 +227,44 @@ declare global {
   interface Window {
     leap?: Keplr
   }
+}
+
+export type DefaultUiConfig = {
+  // Class names applied to various components for custom theming.
+  classNames?: ModalClassNames
+  // Custom close icon.
+  closeIcon?: ReactNode
+  // A custom loader to display in the modals, such as enabling the wallet.
+  renderLoader?: () => ReactNode
+  // Shows the enabling modal on autoconnect. The default behavior is to hide it
+  // on autoconnect, since most times it will silently succeed from a previous
+  // connection, and the enabling modal is distracting during first page load.
+  showConnectingModalOnAutoconnect?: boolean
+}
+
+export type UiProps = {
+  // Wallets available to connect to.
+  wallets: Wallet[]
+  // Initiate connection to a wallet.
+  connectToWallet: (wallet: Wallet) => Promise<void>
+  // When status is AttemptingAutoConnect or Connecting, and this is defined,
+  // the UI should be prompting to connect to WalletConnect.
+  walletConnectUri?: string
+  // Cancel connecting and close the UI.
+  cancel: () => void
+  // Reset connection processs in case it got stuck, reconnecting to the same
+  // wallet that is currently being connected or reloading the page if no wallet
+  // is being connected to.
+  reset: () => Promise<void>
+  // The current connection status.
+  status: WalletConnectionStatus
+  // The wallet being connected to, if status is AttemptingAutoConnect or
+  // Connecting. This should be set right after `connectToWallet` is called.
+  connectingWallet?: Wallet
+  // The wallet currently connected, if status is Connected.
+  connectedWallet?: ConnectedWallet
+  // The error that occurred on the most recent connection attempt.
+  error?: unknown
+  // Passed through the provider.
+  defaultUiConfig?: DefaultUiConfig
 }
