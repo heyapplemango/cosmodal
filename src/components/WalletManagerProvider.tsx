@@ -31,7 +31,6 @@ import {
   KeplrWalletConnectV1,
   MANUAL_WALLET_CONNECT_DISCONNECT,
 } from "../wallets/keplr/mobile/KeplrWalletConnectV1"
-import { WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY } from "../wallets/web3auth/utils"
 import { DefaultUi } from "./ui/DefaultUi"
 import { WalletManagerContext } from "./WalletManagerContext"
 
@@ -94,6 +93,7 @@ export const WalletManagerProvider: FunctionComponent<
     [enabledWalletTypes]
   )
 
+  const [forceConnectWallet, setForceConnectWallet] = useState<Wallet>()
   const [isEmbeddedKeplrMobileWeb, setIsEmbeddedKeplrMobileWeb] =
     useState(false)
 
@@ -328,8 +328,6 @@ export const WalletManagerProvider: FunctionComponent<
     setError(undefined)
 
     const automaticWalletType =
-      // Auto-connect to web3auth wallet using redirect.
-      localStorage.getItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY) ||
       // Auto-connect to preselected wallet.
       preselectedWalletType ||
       // Try to fetch value from localStorage.
@@ -340,6 +338,9 @@ export const WalletManagerProvider: FunctionComponent<
       // Mobile web mode takes precedence over automatic wallet.
       isEmbeddedKeplrMobileWeb
         ? KeplrExtensionWallet
+        : // Use force connect wallet if present.
+        forceConnectWallet
+        ? forceConnectWallet
         : // If only one wallet is available, skip the modal and use it.
         enabledWallets.length === 1
         ? enabledWallets[0]
@@ -363,6 +364,7 @@ export const WalletManagerProvider: FunctionComponent<
     preselectedWalletType,
     localStorageKey,
     isEmbeddedKeplrMobileWeb,
+    forceConnectWallet,
     enabledWallets,
     connectToWallet,
   ])
@@ -396,16 +398,30 @@ export const WalletManagerProvider: FunctionComponent<
       return
     }
 
-    import("@keplr-wallet/stores")
-      .then(({ getKeplrFromWindow }) => getKeplrFromWindow())
-      .then(
-        (keplr) =>
-          keplr &&
-          keplr.mode === "mobile-web" &&
-          setIsEmbeddedKeplrMobileWeb(true)
+    const initialize = async () => {
+      // Check if in embedded Keplr Mobile web.
+      await import("@keplr-wallet/stores")
+        .then(({ getKeplrFromWindow }) => getKeplrFromWindow())
+        .then(
+          (keplr) =>
+            keplr &&
+            keplr.mode === "mobile-web" &&
+            setIsEmbeddedKeplrMobileWeb(true)
+        )
+
+      // Check if any wallets should force connect.
+      const enabledWalletsShouldForceConnect = await Promise.all(
+        enabledWallets.map((w) => w.shouldForceConnect?.())
       )
-      .finally(() => setStatus(WalletConnectionStatus.AttemptingAutoConnection))
-  }, [status])
+      setForceConnectWallet(
+        enabledWallets.find((_, i) => enabledWalletsShouldForceConnect[i])
+      )
+
+      setStatus(WalletConnectionStatus.AttemptingAutoConnection)
+    }
+
+    initialize()
+  }, [enabledWallets, status])
 
   // Auto connect on mount handler, after the above mobile web check.
   useEffect(() => {
@@ -420,8 +436,8 @@ export const WalletManagerProvider: FunctionComponent<
     if (
       // If inside Keplr mobile web, auto connect.
       isEmbeddedKeplrMobileWeb ||
-      // If should autoconnect to web3auth using redirect, auto connect.
-      localStorage.getItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY) ||
+      // If any wallet should force connect, auto connect.
+      forceConnectWallet ||
       // If localStorage value present, auto connect.
       (localStorageKey && !!localStorage.getItem(localStorageKey))
     ) {
@@ -429,7 +445,13 @@ export const WalletManagerProvider: FunctionComponent<
     } else {
       setStatus(WalletConnectionStatus.ReadyForConnection)
     }
-  }, [status, beginConnection, isEmbeddedKeplrMobileWeb, localStorageKey])
+  }, [
+    status,
+    beginConnection,
+    isEmbeddedKeplrMobileWeb,
+    localStorageKey,
+    forceConnectWallet,
+  ])
 
   // Execute onQrCloseCallback if WalletConnect URI is cleared.
   useEffect(() => {

@@ -1,11 +1,30 @@
-import { LOGIN_PROVIDER } from "@toruslabs/openlogin"
+import { getHashQueryParams, LOGIN_PROVIDER } from "@toruslabs/openlogin"
 
 import { Wallet, WalletType } from "../../types"
 import { Web3AuthClient } from "./client"
+import { WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY } from "./utils"
+
+// Force connect to web3auth wallet if the redirect auto connect key is set and
+// there is a wallet in the hash.
+const makeShouldForceConnect =
+  (walletType: WalletType): Wallet["shouldForceConnect"] =>
+  async () => {
+    const redirectAutoConnect = localStorage.getItem(
+      WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY
+    )
+    if (redirectAutoConnect !== walletType) {
+      return false
+    }
+
+    // Same logic used in `@web3auth/openlogin-adapter` init function to
+    // determine if the adapter should attempt to connect from the redirect.
+    const redirectResult = getHashQueryParams()
+    return Object.keys(redirectResult).length > 0 && !!redirectResult._pid
+  }
 
 const Web3AuthBaseWallet: Pick<
   Wallet,
-  "description" | "getOfflineSignerFunction"
+  "description" | "getOfflineSignerFunction" | "shouldForceConnect"
 > = {
   description: "Self-custody via Web3Auth",
   getOfflineSignerFunction: (client) =>
@@ -24,6 +43,7 @@ export const Web3AuthGoogleWallet: Wallet = {
       LOGIN_PROVIDER.GOOGLE,
       options
     ),
+  shouldForceConnect: makeShouldForceConnect(WalletType.Google),
 
   ...Web3AuthBaseWallet,
 }
@@ -35,6 +55,7 @@ export const Web3AuthAppleWallet: Wallet = {
     "https://bafkreih5fbwcnzq4xmarrgcf5wkr5mpx5gfia2loj5fruaa542v7kwv5iq.ipfs.nftstorage.link/",
   getClient: async (_chainInfo, _walletConnect, options) =>
     await Web3AuthClient.setup(WalletType.Apple, LOGIN_PROVIDER.APPLE, options),
+  shouldForceConnect: makeShouldForceConnect(WalletType.Apple),
 
   ...Web3AuthBaseWallet,
 }
@@ -50,6 +71,7 @@ export const Web3AuthDiscordWallet: Wallet = {
       LOGIN_PROVIDER.DISCORD,
       options
     ),
+  shouldForceConnect: makeShouldForceConnect(WalletType.Discord),
 
   ...Web3AuthBaseWallet,
 }
@@ -65,6 +87,7 @@ export const Web3AuthTwitterWallet: Wallet = {
       LOGIN_PROVIDER.TWITTER,
       options
     ),
+  shouldForceConnect: makeShouldForceConnect(WalletType.Twitter),
 
   ...Web3AuthBaseWallet,
 }

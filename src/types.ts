@@ -67,6 +67,8 @@ export interface Wallet {
   getOfflineSignerFunction: (
     client: WalletClient
   ) => (chainId: string) => OfflineSigner | Promise<OfflineSigner>
+  // A function that determines if the wallet should force connect.
+  shouldForceConnect?: () => Promise<boolean>
   // The event to listen for on the window to determine when the wallet client
   // account info should refresh.
   windowKeystoreRefreshEvent?: string

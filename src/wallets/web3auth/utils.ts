@@ -159,6 +159,10 @@ export const connectClientAndProvider = async (
       loginProvider,
     }))
 
+  // On successful connection, remove the localStorage key indicating that we
+  // should try to reconnect to this wallet after the redirect on library init.
+  localStorage.removeItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY)
+
   return {
     client,
     provider,
