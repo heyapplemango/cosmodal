@@ -1,7 +1,6 @@
 import { SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate"
 import { SigningStargateClientOptions } from "@cosmjs/stargate"
 import WalletConnect from "@walletconnect/client"
-import { ERROR_QRCODE_MODAL_USER_CLOSED } from "@walletconnect/core/dist/esm/errors"
 import { IClientMeta } from "@walletconnect/types"
 import React, {
   ComponentType,
@@ -266,10 +265,9 @@ export const WalletManagerProvider: FunctionComponent<
         // If QR modal closed, ignore saving error since it is a user action.
         // Otherwise store the error for the UI.
         if (
-          !(
-            err instanceof Error &&
-            err.message === ERROR_QRCODE_MODAL_USER_CLOSED
-          )
+          // ERROR_QRCODE_MODAL_USER_CLOSED in
+          // "@walletconnect/core/dist/esm/errors"
+          !(err instanceof Error && err.message === "User close QRCode Modal")
         ) {
           setError(err)
         }
