@@ -129,9 +129,10 @@ export const connectClientAndProvider = async (
   // safer for desktop browsers, so use that if not mobile.
   const uxMode =
     isMobile() && !options.forcePopup ? UX_MODE.REDIRECT : UX_MODE.POPUP
-  // If redirecting, set localStorage key indicating that we should try to
-  // reconnect to this wallet after the redirect on init.
-  if (uxMode === UX_MODE.REDIRECT) {
+  // If using redirect method while trying to login, set localStorage key
+  // indicating that we should try to reconnect to this wallet after the
+  // redirect on library init.
+  if (uxMode === UX_MODE.REDIRECT && !dontAttemptLogin) {
     localStorage.setItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY, walletType)
   }
 
