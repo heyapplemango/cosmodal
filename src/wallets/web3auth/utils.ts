@@ -4,6 +4,7 @@ import eccrypto, { Ecies } from "@toruslabs/eccrypto"
 import { LOGIN_PROVIDER_TYPE, UX_MODE } from "@toruslabs/openlogin"
 import { isMobile } from "@walletconnect/utils"
 import {
+  ADAPTER_STATUS,
   CHAIN_NAMESPACES,
   SafeEventEmitterProvider,
   WALLET_ADAPTERS,
@@ -132,7 +133,8 @@ export const connectClientAndProvider = async (
   // If using redirect method while trying to login, set localStorage key
   // indicating that we should try to reconnect to this wallet after the
   // redirect on library init.
-  if (uxMode === UX_MODE.REDIRECT && !dontAttemptLogin) {
+  const usingRedirect = uxMode === UX_MODE.REDIRECT && !dontAttemptLogin
+  if (usingRedirect) {
     localStorage.setItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY, walletType)
   }
 
@@ -159,9 +161,20 @@ export const connectClientAndProvider = async (
       loginProvider,
     }))
 
-  // On successful connection, remove the localStorage key indicating that we
-  // should try to reconnect to this wallet after the redirect on library init.
-  localStorage.removeItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY)
+  if (usingRedirect) {
+    if (client.status === ADAPTER_STATUS.CONNECTED) {
+      // On successful connection from a redirect, remove the localStorage key
+      // so we do not attempt to auto connect on the next page load.
+      localStorage.removeItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY)
+    } else {
+      // If not yet connected but redirecting, hang to give the page time to
+      // redirect without throwing any errors. After 30 seconds, throw a
+      // timeout error because it should definitely have redirected by then.
+      await new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Redirect timed out.")), 30000)
+      )
+    }
+  }
 
   return {
     client,
