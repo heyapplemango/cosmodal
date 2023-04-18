@@ -139,8 +139,12 @@ export const WalletManagerProvider: FunctionComponent<
   // Disconnect from connected wallet.
   const disconnect = useCallback(
     async (dontKillWalletConnect?: boolean) => {
-      // Disconnect client if it exists.
-      connectedWallet?.walletClient?.disconnect?.()
+      // Disconnect client if it exists. Log and ignore errors.
+      try {
+        await connectedWallet?.walletClient?.disconnect?.()
+      } catch (err) {
+        console.error("Error disconnecting wallet client", err)
+      }
 
       // Disconnect wallet.
       setConnectedWallet(undefined)
@@ -153,7 +157,7 @@ export const WalletManagerProvider: FunctionComponent<
       // Disconnect WalletConnect.
       setWalletConnect(undefined)
       if (walletConnect?.connected && !dontKillWalletConnect) {
-        await walletConnect.killSession()
+        await walletConnect.killSession().catch(console.error)
         // Remove session from localStorage since it tries to use the same
         // session as last time on future attempts. When the user manually
         // disconnects, we want to clear this state in case something is wrong
