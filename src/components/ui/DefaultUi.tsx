@@ -12,7 +12,7 @@ export const DefaultUi = ({
   connectToWallet,
   reset,
   walletConnectUri,
-  cancel,
+  disconnect,
   defaultUiConfig: {
     showConnectingModalOnAutoconnect = false,
     classNames,
@@ -25,7 +25,7 @@ export const DefaultUi = ({
       classNames={classNames}
       closeIcon={closeIcon}
       isOpen
-      onClose={cancel}
+      onClose={disconnect}
       selectWallet={connectToWallet}
       wallets={wallets}
     />
@@ -39,7 +39,7 @@ export const DefaultUi = ({
         classNames={classNames}
         closeIcon={closeIcon}
         isOpen
-        onClose={cancel}
+        onClose={disconnect}
         reset={reset}
         uri={walletConnectUri}
       />

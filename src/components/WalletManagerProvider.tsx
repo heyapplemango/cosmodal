@@ -1,6 +1,7 @@
 import { SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate"
 import { SigningStargateClientOptions } from "@cosmjs/stargate"
 import WalletConnect from "@walletconnect/client"
+import { ERROR_QRCODE_MODAL_USER_CLOSED } from "@walletconnect/core/dist/esm/errors"
 import { IClientMeta } from "@walletconnect/types"
 import React, {
   ComponentType,
@@ -27,7 +28,10 @@ import {
 import { getChainInfo, getConnectedWalletInfo } from "../utils"
 import { WALLETS } from "../wallets"
 import { KeplrExtensionWallet } from "../wallets/keplr/extension"
-import { KeplrWalletConnectV1 } from "../wallets/keplr/mobile/KeplrWalletConnectV1"
+import {
+  KeplrWalletConnectV1,
+  MANUAL_WALLET_CONNECT_DISCONNECT,
+} from "../wallets/keplr/mobile/KeplrWalletConnectV1"
 import { DefaultUi } from "./ui/DefaultUi"
 import { WalletManagerContext } from "./WalletManagerContext"
 
@@ -93,86 +97,60 @@ export const WalletManagerProvider: FunctionComponent<
   const [isEmbeddedKeplrMobileWeb, setIsEmbeddedKeplrMobileWeb] =
     useState(false)
 
+  // Store WalletConnect instance so we can setup a disconnect handler.
+  const [walletConnect, setWalletConnect] = useState<WalletConnect>()
   // If set, opens QR code modal.
   const [walletConnectUri, setWalletConnectUri] = useState<string>()
+  // Call when closing QR code modal manually to tell WalletConnect the user has
+  // cancelled the connection request.
+  const onManualQrCloseCallback = useRef<() => void>()
 
-  // WalletConnect State
-  const [walletConnect, setWalletConnect] = useState<WalletConnect>()
-  // Call when closing QR code modal manually.
-  const onQrCloseCallback = useRef<() => void>()
-
-  // Wallet connection State
+  // Wallet connection state
   const [connectedWallet, setConnectedWallet] = useState<ConnectedWallet>()
   const [error, setError] = useState<unknown>()
   // Once mobile web is checked, we are ready to auto-connect.
   const [status, setStatus] = useState<WalletConnectionStatus>(
     WalletConnectionStatus.Initializing
   )
-  // In case WalletConnect fails to load, we need to be able to retry.
-  // This is done through clicking reset on the WalletConnectModal.
+  // Store wallet we are currently connecting to for UI purposes and to allow
+  // manual resetting in case the connection gets stuck. This does not get
+  // cleared, so it will be always be set to the most recent wallet a connection
+  // attempt was made to.
   const [connectingWallet, setConnectingWallet] = useState<Wallet>()
   const connectionAttemptRef = useRef(0)
-  // Reset connection when it gets stuck somewhere.
-  const [connectToWalletUponReset, setConnectToWalletUponReset] =
-    useState<Wallet>()
 
   //! CALLBACKS
 
   // Retrieve chain info for initial wallet connection, throwing error if
   // not found.
-  const _getDefaultChainInfo = useCallback(
+  const getDefaultChainInfo = useCallback(
     async () => await getChainInfo(defaultChainId, chainInfoOverrides),
     [defaultChainId, chainInfoOverrides]
   )
 
-  // Closes modals and clears connection state.
-  const _cleanupAfterConnection = useCallback((walletClient?: WalletClient) => {
-    setWalletConnectUri(undefined)
-    // Allow future enable requests to open the app.
-    if (walletClient instanceof KeplrWalletConnectV1) {
-      walletClient.dontOpenAppOnEnable = false
-    }
-    // No longer connecting a wallet.
-    setConnectingWallet(undefined)
-  }, [])
-
   // Disconnect from connected wallet.
-  const disconnect = useCallback(
-    async (dontKillWalletConnect?: boolean) => {
-      // Disconnect client if it exists. Log and ignore errors.
-      try {
-        await connectedWallet?.walletClient?.disconnect?.()
-      } catch (err) {
-        console.error("Error disconnecting wallet client", err)
-      }
+  const disconnect = useCallback(() => {
+    // Disconnect client if it exists. Log and ignore errors.
+    connectedWallet?.walletClient
+      ?.disconnect?.()
+      ?.catch((err) => console.error("Error disconnecting wallet client", err))
 
-      // Disconnect wallet.
-      setConnectedWallet(undefined)
-      setStatus(WalletConnectionStatus.ReadyForConnection)
-      // Remove localStorage value.
-      if (localStorageKey) {
-        localStorage.removeItem(localStorageKey)
-      }
+    // Disconnect wallet.
+    setConnectedWallet(undefined)
+    setStatus(WalletConnectionStatus.ReadyForConnection)
 
-      // Disconnect WalletConnect.
-      setWalletConnect(undefined)
-      if (walletConnect?.connected && !dontKillWalletConnect) {
-        await walletConnect.killSession().catch(console.error)
-        // Remove session from localStorage since it tries to use the same
-        // session as last time on future attempts. When the user manually
-        // disconnects, we want to clear this state in case something is wrong
-        // with the session or they are trying to change their wallet and it
-        // won't detect the change.
-        if (typeof localStorage !== "undefined") {
-          localStorage.removeItem("walletconnect")
-        }
-      }
-    },
-    [localStorageKey, walletConnect, connectedWallet]
-  )
+    // Clear WalletConnect state.
+    setWalletConnect(undefined)
+    setWalletConnectUri(undefined)
+
+    // Remove localStorage value.
+    if (localStorageKey) {
+      localStorage.removeItem(localStorageKey)
+    }
+  }, [localStorageKey, connectedWallet])
 
   // Obtain WalletConnect if necessary, and connect to the wallet.
-  const _connectToWallet = useCallback(
+  const connectToWallet = useCallback(
     async (wallet: Wallet, { autoConnecting = false } = {}) => {
       setStatus(
         autoConnecting
@@ -187,7 +165,7 @@ export const WalletManagerProvider: FunctionComponent<
 
       // The actual meat of enabling and getting the wallet clients.
       const finalizeWalletConnection = async (newWcSession?: boolean) => {
-        const chainInfo = await _getDefaultChainInfo()
+        const chainInfo = await getDefaultChainInfo()
 
         walletClient = await wallet.getClient(
           chainInfo,
@@ -198,7 +176,7 @@ export const WalletManagerProvider: FunctionComponent<
           throw new Error("Failed to retrieve wallet client.")
         }
 
-        // Prevent double app open request.
+        // Prevent double app open request when connecting a new WC session.
         if (walletClient instanceof KeplrWalletConnectV1) {
           walletClient.dontOpenAppOnEnable = !!newWcSession
         }
@@ -213,6 +191,11 @@ export const WalletManagerProvider: FunctionComponent<
             await getSigningStargateClientOptions?.(chainInfo)
           )
         )
+
+        // Allow future WC enable requests to open the app.
+        if (walletClient instanceof KeplrWalletConnectV1) {
+          walletClient.dontOpenAppOnEnable = false
+        }
 
         // Save localStorage value.
         if (localStorageKey) {
@@ -239,10 +222,9 @@ export const WalletManagerProvider: FunctionComponent<
                 open: (uri: string, cb: () => void) => {
                   // Open QR modal by setting URI.
                   setWalletConnectUri(uri)
-                  onQrCloseCallback.current = cb
+                  onManualQrCloseCallback.current = cb
                 },
-                // Occurs on disconnect, which is handled elsewhere.
-                close: () => console.log("qrcodeModal.close"),
+                close: () => setWalletConnectUri(undefined),
               },
               // clientMeta,
             })
@@ -280,21 +262,53 @@ export const WalletManagerProvider: FunctionComponent<
         }
       } catch (err) {
         console.error(err)
-        setError(err)
-        setStatus(WalletConnectionStatus.ReadyForConnection)
+
+        // If QR modal closed, ignore saving error since it is a user action.
+        // Otherwise store the error for the UI.
+        if (
+          !(
+            err instanceof Error &&
+            err.message === ERROR_QRCODE_MODAL_USER_CLOSED
+          )
+        ) {
+          setError(err)
+        }
+
+        // If resetting, don't change status. Reset calls `disconnect` to clear
+        // state, which will make the WalletConnect `connect` function above
+        // throw an error as the connection attempt is interrupted. The status
+        // needs to remain `Resetting` in this case.
+        setStatus((status) =>
+          status === WalletConnectionStatus.Resetting
+            ? status
+            : WalletConnectionStatus.ReadyForConnection
+        )
+
+        // If wallet client was created, disconnect it in case it has a
+        // persistent issue being enabled. This prevents getting stuck
+        // autoconnecting to a bad wallet.
+        walletClient
+          ?.disconnect?.()
+          ?.catch((err) =>
+            console.error(
+              "Error disconnecting wallet client on failed connection",
+              err
+            )
+          )
       } finally {
-        _cleanupAfterConnection(walletClient)
+        // Once connection completes, clear WC URI so the QR code stops showing,
+        // on both success and failure.
+        setWalletConnectUri(undefined)
       }
     },
     [
       walletConnect,
-      _getDefaultChainInfo,
+      getDefaultChainInfo,
       walletOptions,
       getSigningCosmWasmClientOptions,
       getSigningStargateClientOptions,
       localStorageKey,
       walletConnectClientMeta,
-      _cleanupAfterConnection,
     ]
   )
 
@@ -333,7 +347,7 @@ export const WalletManagerProvider: FunctionComponent<
         : undefined
 
     if (skipModalWallet) {
-      _connectToWallet(skipModalWallet, {
+      connectToWallet(skipModalWallet, {
         autoConnecting:
           status === WalletConnectionStatus.AttemptingAutoConnection,
       })
@@ -348,24 +362,25 @@ export const WalletManagerProvider: FunctionComponent<
     localStorageKey,
     isEmbeddedKeplrMobileWeb,
     enabledWallets,
-    _connectToWallet,
+    connectToWallet,
   ])
 
   // Initiate reset.
-  const _reset = useCallback(async () => {
-    await disconnect().catch(console.error)
-    // Set after disconnect, since disconnect sets state to
-    // ReadyForConnection.
-    setStatus(WalletConnectionStatus.Resetting)
-    // Try resetting all wallet state and reconnecting.
+  const reset = useCallback(async () => {
+    // Disconnect current state.
+    disconnect()
+
     if (connectingWallet) {
-      setConnectToWalletUponReset(connectingWallet)
-      _cleanupAfterConnection()
+      // Set after disconnect, since disconnect sets state to
+      // ReadyForConnection. This will trigger the effect to reconnect. This
+      // is necessary to ensure that the state that `disconnect` updates is
+      // the same state that `connect` reads.
+      setStatus(WalletConnectionStatus.Resetting)
     } else {
-      // If no wallet to reconnect to, just reload.
+      // If no wallet to reconnect to, just reload the page.
       window.location.reload()
     }
-  }, [_cleanupAfterConnection, connectingWallet, disconnect])
+  }, [connectingWallet, disconnect])
 
   //! EFFECTS
 
@@ -412,28 +427,22 @@ export const WalletManagerProvider: FunctionComponent<
     }
   }, [status, beginConnection, isEmbeddedKeplrMobileWeb, localStorageKey])
 
-  // Execute onQrCloseCallback if WalletConnect URI is cleared, since it
-  // has now been closed.
+  // Execute onQrCloseCallback if WalletConnect URI is cleared.
   useEffect(() => {
-    if (!walletConnectUri && onQrCloseCallback) {
-      onQrCloseCallback.current?.()
-      onQrCloseCallback.current = undefined
+    if (!walletConnectUri) {
+      onManualQrCloseCallback.current?.()
+      onManualQrCloseCallback.current = undefined
     }
-  }, [walletConnectUri, onQrCloseCallback])
+  }, [walletConnectUri])
 
   // Attempt reconnecting to a wallet after resetting if we have set a wallet to
   // select after resetting.
   useEffect(() => {
-    if (
-      status === WalletConnectionStatus.Resetting &&
-      !connectingWallet &&
-      connectToWalletUponReset
-    ) {
-      setConnectToWalletUponReset(undefined)
+    if (status === WalletConnectionStatus.Resetting && connectingWallet) {
       // Updates state to Connecting.
-      _connectToWallet(connectToWalletUponReset)
+      connectToWallet(connectingWallet)
     }
-  }, [connectingWallet, status, _connectToWallet, connectToWalletUponReset])
+  }, [connectingWallet, status, connectToWallet])
 
   // WalletConnect disconnect listener.
   useEffect(() => {
@@ -441,13 +450,23 @@ export const WalletManagerProvider: FunctionComponent<
       return
     }
 
-    // Detect disconnected WC session and clear wallet state.
-    walletConnect.on("disconnect", () => {
-      console.log("WalletConnect disconnected.")
-      disconnect(true)
-      _cleanupAfterConnection()
+    // Detect disconnected WC session and clear wallet state if this was not a
+    // manual disconnect.
+    walletConnect.on("disconnect", (_, { params: [{ message }] }) => {
+      console.log("WalletConnect disconnected.", message)
+
+      // Only call disconnect if this was not a manual disconnect. The
+      // `disconnect` function attempts to disconnect the current wallet, which
+      // includes disconnecting any live WalletConnect session, so we don't need
+      // to call disconnect again if manual.
+      if (message !== MANUAL_WALLET_CONNECT_DISCONNECT) {
+        disconnect()
+      }
     })
-  }, [_cleanupAfterConnection, disconnect, walletConnect])
+
+    // Clear listener on unmount.
+    return () => walletConnect.off("disconnect")
+  }, [disconnect, walletConnect])
 
   // Keystore change event listener.
   useEffect(() => {
@@ -466,7 +485,7 @@ export const WalletManagerProvider: FunctionComponent<
     const listener = async (event: Event) => {
       // Reconnect to wallet, since name/address may have changed.
       if (status === WalletConnectionStatus.Connected && connectedWallet) {
-        _connectToWallet(connectedWallet.wallet)
+        connectToWallet(connectedWallet.wallet)
       }
 
       // Execute callback if passed.
@@ -480,7 +499,7 @@ export const WalletManagerProvider: FunctionComponent<
     return () => {
       window.removeEventListener(windowKeystoreRefreshEvent, listener)
     }
-  }, [onKeystoreChangeEvent, connectedWallet, status, _connectToWallet])
+  }, [onKeystoreChangeEvent, connectedWallet, status, connectToWallet])
 
   // Memoize context data.
   const value = useMemo(
@@ -516,13 +535,13 @@ export const WalletManagerProvider: FunctionComponent<
       {children}
 
       <UI
-        cancel={() => disconnect().finally(_cleanupAfterConnection)}
-        connectToWallet={_connectToWallet}
+        connectToWallet={connectToWallet}
         connectedWallet={connectedWallet}
         connectingWallet={connectingWallet}
         defaultUiConfig={defaultUiConfig}
+        disconnect={disconnect}
         error={error}
-        reset={_reset}
+        reset={reset}
         status={status}
         walletConnectUri={walletConnectUri}
         wallets={enabledWallets}

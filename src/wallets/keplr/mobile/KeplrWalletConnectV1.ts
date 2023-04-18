@@ -54,6 +54,9 @@ function parseChainId(chainId: string): {
   }
 }
 
+export const MANUAL_WALLET_CONNECT_DISCONNECT =
+  "MANUAL_WALLET_CONNECT_DISCONNECT"
+
 export type KeplrGetKeyWalletConnectV1Response = {
   address: string
   algo: string
@@ -122,6 +125,16 @@ export class KeplrWalletConnectV1 implements WalletClient {
   }
 
   async disconnect(): Promise<void> {
+    // Kill WalletConnect session if connected.
+    await this.connector
+      .killSession({
+        message: MANUAL_WALLET_CONNECT_DISCONNECT,
+      })
+      .catch(console.error)
+
+    // Clear saved data.
+    this.clearSaved()
+
     // Remove session from localStorage since it tries to use the same session
     // as last time on future attempts. When the user manually disconnects, we
     // want to clear this state in case something is wrong with the session or

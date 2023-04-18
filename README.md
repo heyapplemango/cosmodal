@@ -246,7 +246,7 @@ interface IWalletManagerContext {
   // when `preselectedWalletType` is set.
   connect: () => void
   // Function that disconnects from the connected wallet.
-  disconnect: () => Promise<void>
+  disconnect: () => void
   // Connected wallet info and clients for interacting with the chain.
   connectedWallet?: ConnectedWallet
   // Status of cosmodal.
@@ -327,8 +327,8 @@ type UiProps = {
   // When status is AttemptingAutoConnect or Connecting, and this is defined,
   // the UI should be prompting to connect to WalletConnect.
   walletConnectUri?: string
-  // Cancel connecting and close the UI.
-  cancel: () => void
+  // Disconnect. This closes the default UI.
+  disconnect: () => void
   // Reset connection processs in case it got stuck, reconnecting to the same
   // wallet that is currently being connected or reloading the page if no wallet
   // is being connected to.
