@@ -129,8 +129,8 @@ export class Web3AuthClient implements WalletClient {
     }
 
     // 2. Encrypt and send the wallet private key to the worker. This is the
-    //    last usage of `workerPublicKey`, so ideally it gets garbage collected
-    //    ASAP.
+    //    last usage of `workerPublicKey`, so it should get garbage collected
+    //    ASAP once this function ends.
     const encryptedPrivateKey = await eccrypto.encrypt(
       workerPublicKey,
       Buffer.from(privateKeyHex, "hex")
@@ -211,8 +211,9 @@ export class Web3AuthClient implements WalletClient {
     } catch (err) {
       console.warn("Web3Auth failed to logout:", err)
     }
-    terminate?.call(this.#worker)
     this.#signers = {}
+    this.#userInfo = {}
+    terminate?.call(this.#worker)
   }
 
   getOfflineSigner(chainId: string) {

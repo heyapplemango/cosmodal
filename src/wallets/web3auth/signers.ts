@@ -38,8 +38,8 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
 
   async getAccounts(): Promise<readonly AccountData[]> {
     let accounts: AccountData[] | undefined
-    // Should not resolve until accounts are received.
     const id = Date.now()
+    // Should not resolve until accounts are received.
     await sendAndListenOnce(
       this.#worker,
       {
@@ -93,7 +93,7 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       throw new Error("Request rejected")
     }
 
-    let response: DirectSignResponse | undefined
+    // Create and sign signature request.
     const id = Date.now()
     const message: ToWorkerMessage = {
       type: "request_sign",
@@ -110,6 +110,7 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       hashObject(message.payload)
     )
 
+    let response: DirectSignResponse | undefined
     // Should not resolve until response is received.
     await sendAndListenOnce(this.#worker, message, async (data) => {
       if (data.type === "sign" && data.payload.id === id) {
@@ -158,7 +159,7 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       throw new Error("Request rejected")
     }
 
-    let response: AminoSignResponse | undefined
+    // Create and sign signature request.
     const id = Date.now()
     const message: ToWorkerMessage = {
       type: "request_sign",
@@ -175,6 +176,7 @@ export class Web3AuthSigner implements OfflineDirectSigner, OfflineAminoSigner {
       hashObject(message.payload)
     )
 
+    let response: AminoSignResponse | undefined
     // Should not resolve until response is received.
     await sendAndListenOnce(this.#worker, message, async (data) => {
       if (data.type === "sign" && data.payload.id === id) {

@@ -11,11 +11,14 @@ let walletPrivateKey: Uint8Array | undefined
 
 self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
   if (data.type === "init_1") {
-    clientPublicKey = Buffer.from(data.payload.publicKey, "hex")
-
-    workerPrivateKey = eccrypto.generatePrivate()
-
     try {
+      // Store the client's public key.
+      clientPublicKey = Buffer.from(data.payload.publicKey, "hex")
+
+      // Generate a private key for this worker.
+      workerPrivateKey = eccrypto.generatePrivate()
+
+      // Encrypt the worker's public key for the client.
       const encryptedPublicKey = await eccrypto.encrypt(
         clientPublicKey,
         eccrypto.getPublic(workerPrivateKey)
@@ -44,7 +47,7 @@ self.onmessage = async ({ data }: MessageEvent<ToWorkerMessage>) => {
 
   if (data.type === "init_2") {
     try {
-      // Decrypt the private key.
+      // Decrypt the private key encrypted by the client.
       walletPrivateKey = await decrypt(
         workerPrivateKey,
         data.payload.encryptedPrivateKey
