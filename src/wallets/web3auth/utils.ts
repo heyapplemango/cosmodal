@@ -1,8 +1,8 @@
 import { sha256 } from "@cosmjs/crypto"
 import { toUtf8 } from "@cosmjs/encoding"
 import eccrypto, { Ecies } from "@toruslabs/eccrypto"
-import { UX_MODE } from "@toruslabs/openlogin"
-import { LOGIN_PROVIDER_TYPE } from "@toruslabs/openlogin"
+import { LOGIN_PROVIDER_TYPE, UX_MODE } from "@toruslabs/openlogin"
+import { isMobile } from "@walletconnect/utils"
 import {
   CHAIN_NAMESPACES,
   SafeEventEmitterProvider,
@@ -11,11 +11,18 @@ import {
 import { Web3AuthNoModal } from "@web3auth/no-modal"
 import { OpenloginAdapter } from "@web3auth/openlogin-adapter"
 
+import { WalletType } from "../../types"
 import {
   FromWorkerMessage,
   ToWorkerMessage,
   Web3AuthClientOptions,
 } from "./types"
+
+// If we connect to the Web3Auth client via redirect, set this key in
+// localStorage to indicate that we should try to reconnect to this wallet
+// after the redirect. This should be implemented by the WalletManagerProvider.
+export const WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY =
+  "__cosmodal_web3auth_redirect_auto_connect"
 
 // In case these get overwritten by an attacker.
 const postMessage =
@@ -97,6 +104,7 @@ export const hashObject = (object: unknown): Buffer =>
   Buffer.from(sha256(toUtf8(JSON.stringify(object))))
 
 export const connectClientAndProvider = async (
+  walletType: WalletType,
   loginProvider: LOGIN_PROVIDER_TYPE,
   options: Web3AuthClientOptions,
   {
@@ -117,9 +125,19 @@ export const connectClientAndProvider = async (
     },
   })
 
+  // Popups are blocked by default on mobile browsers, so use redirect. Popup is
+  // safer for desktop browsers, so use that if not mobile.
+  const uxMode =
+    isMobile() && !options.forcePopup ? UX_MODE.REDIRECT : UX_MODE.POPUP
+  // If redirecting, set localStorage key indicating that we should try to
+  // reconnect to this wallet after the redirect on init.
+  if (uxMode === UX_MODE.REDIRECT) {
+    localStorage.setItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY, walletType)
+  }
+
   const openloginAdapter = new OpenloginAdapter({
     adapterSettings: {
-      uxMode: UX_MODE.POPUP,
+      uxMode,
       // Setting both to empty strings prevents the popup from opening when
       // attempted, ensuring no login attempt is made. Essentially, this makes
       // the `connectTo` method called on the client below throw an error if a

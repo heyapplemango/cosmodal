@@ -12,6 +12,13 @@ export type Web3AuthClientOptions = {
     web3AuthNetwork: OPENLOGIN_NETWORK_TYPE
   } & Web3AuthNoModalOptions
 
+  // Mobile devices block popups by default, so the default behavior is to use
+  // the redirect method to sign-in on mobile, and the popup method on desktop.
+  // The popup is safer, but mobile browsers tend to have less extensions (and
+  // browser extensions are the main security concern for the redirect method).
+  // Forcing popup means that the popup method will be used on mobile as well.
+  forcePopup?: boolean
+
   // Function to prompt the user to sign a transaction.
   promptSign: PromptSign
 }

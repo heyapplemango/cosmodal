@@ -31,6 +31,7 @@ import {
   KeplrWalletConnectV1,
   MANUAL_WALLET_CONNECT_DISCONNECT,
 } from "../wallets/keplr/mobile/KeplrWalletConnectV1"
+import { WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY } from "../wallets/web3auth/utils"
 import { DefaultUi } from "./ui/DefaultUi"
 import { WalletManagerContext } from "./WalletManagerContext"
 
@@ -327,6 +328,9 @@ export const WalletManagerProvider: FunctionComponent<
     setError(undefined)
 
     const automaticWalletType =
+      // Auto-connect to web3auth wallet using redirect.
+      localStorage.getItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY) ||
+      // Auto-connect to preselected wallet.
       preselectedWalletType ||
       // Try to fetch value from localStorage.
       (localStorageKey && localStorage.getItem(localStorageKey)) ||
@@ -416,6 +420,8 @@ export const WalletManagerProvider: FunctionComponent<
     if (
       // If inside Keplr mobile web, auto connect.
       isEmbeddedKeplrMobileWeb ||
+      // If should autoconnect to web3auth using redirect, auto connect.
+      localStorage.getItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY) ||
       // If localStorage value present, auto connect.
       (localStorageKey && !!localStorage.getItem(localStorageKey))
     ) {

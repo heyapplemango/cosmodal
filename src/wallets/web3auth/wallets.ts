@@ -19,7 +19,11 @@ export const Web3AuthGoogleWallet: Wallet = {
   imageUrl:
     "https://bafkreihcbb7vqxb3ee52kn5fnsf4rzqtjru5n6q2k4ungbw7k3ljpnhhvm.ipfs.nftstorage.link/",
   getClient: async (_chainInfo, _walletConnect, options) =>
-    await Web3AuthClient.setup(LOGIN_PROVIDER.GOOGLE, options),
+    await Web3AuthClient.setup(
+      WalletType.Google,
+      LOGIN_PROVIDER.GOOGLE,
+      options
+    ),
 
   ...Web3AuthBaseWallet,
 }
@@ -30,7 +34,7 @@ export const Web3AuthAppleWallet: Wallet = {
   imageUrl:
     "https://bafkreih5fbwcnzq4xmarrgcf5wkr5mpx5gfia2loj5fruaa542v7kwv5iq.ipfs.nftstorage.link/",
   getClient: async (_chainInfo, _walletConnect, options) =>
-    await Web3AuthClient.setup(LOGIN_PROVIDER.APPLE, options),
+    await Web3AuthClient.setup(WalletType.Apple, LOGIN_PROVIDER.APPLE, options),
 
   ...Web3AuthBaseWallet,
 }
@@ -41,7 +45,11 @@ export const Web3AuthDiscordWallet: Wallet = {
   imageUrl:
     "https://bafkreifssoo7ljepiix4tvrpe4gbqlyhwx6vu6rtir4ou45pj7nv5mjnhm.ipfs.nftstorage.link/",
   getClient: async (_chainInfo, _walletConnect, options) =>
-    await Web3AuthClient.setup(LOGIN_PROVIDER.DISCORD, options),
+    await Web3AuthClient.setup(
+      WalletType.Discord,
+      LOGIN_PROVIDER.DISCORD,
+      options
+    ),
 
   ...Web3AuthBaseWallet,
 }
@@ -52,7 +60,11 @@ export const Web3AuthTwitterWallet: Wallet = {
   imageUrl:
     "https://bafkreibfs3mpmwmaxqakpkpss7pjoe4tl2td3ghxt2mi75pyvrm47qn4jy.ipfs.nftstorage.link/",
   getClient: async (_chainInfo, _walletConnect, options) =>
-    await Web3AuthClient.setup(LOGIN_PROVIDER.TWITTER, options),
+    await Web3AuthClient.setup(
+      WalletType.Twitter,
+      LOGIN_PROVIDER.TWITTER,
+      options
+    ),
 
   ...Web3AuthBaseWallet,
 }

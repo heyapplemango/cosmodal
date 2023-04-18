@@ -6,16 +6,22 @@ import eccrypto from "@toruslabs/eccrypto"
 import { LOGIN_PROVIDER_TYPE, OPENLOGIN_NETWORK } from "@toruslabs/openlogin"
 import { UserInfo } from "@web3auth/base"
 
-import { WalletClient } from "../../types"
+import { WalletClient, WalletType } from "../../types"
 import { Web3AuthSigner } from "./signers"
 import { Web3AuthClientOptions } from "./types"
-import { connectClientAndProvider, decrypt, sendAndListenOnce } from "./utils"
+import {
+  connectClientAndProvider,
+  decrypt,
+  sendAndListenOnce,
+  WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY,
+} from "./utils"
 
 // In case these get overwritten by an attacker.
 const terminate =
   typeof Worker !== "undefined" ? Worker.prototype.terminate : undefined
 
 export class Web3AuthClient implements WalletClient {
+  walletType: WalletType
   loginProvider: LOGIN_PROVIDER_TYPE
 
   #worker: Worker
@@ -30,6 +36,7 @@ export class Web3AuthClient implements WalletClient {
   #signers: Record<string, Web3AuthSigner | undefined> = {}
 
   constructor(
+    walletType: WalletType,
     loginProvider: LOGIN_PROVIDER_TYPE,
     worker: Worker,
     clientPrivateKey: Buffer,
@@ -37,6 +44,7 @@ export class Web3AuthClient implements WalletClient {
     userInfo: Partial<UserInfo>,
     options: Web3AuthClientOptions
   ) {
+    this.walletType = walletType
     this.loginProvider = loginProvider
     this.#worker = worker
     this.#clientPrivateKey = clientPrivateKey
@@ -46,6 +54,7 @@ export class Web3AuthClient implements WalletClient {
   }
 
   static async setup(
+    walletType: WalletType,
     loginProvider: LOGIN_PROVIDER_TYPE,
     _options?: Partial<Web3AuthClientOptions>
   ): Promise<Web3AuthClient> {
@@ -73,6 +82,7 @@ export class Web3AuthClient implements WalletClient {
     // only reference to the private key is in the worker, and this client and
     // provider will be destroyed by the garbage collector, hopefully ASAP.
     const { client, provider } = await connectClientAndProvider(
+      walletType,
       loginProvider,
       options
     )
@@ -156,6 +166,7 @@ export class Web3AuthClient implements WalletClient {
 
     // Store this client's private key for future message sending signatures.
     return new Web3AuthClient(
+      walletType,
       loginProvider,
       worker,
       clientPrivateKey,
@@ -194,12 +205,17 @@ export class Web3AuthClient implements WalletClient {
   }
 
   async disconnect() {
+    // In case this web3auth client uses the redirect auto connect method, clear
+    // it so that it does not automatically connect on the next page load.
+    localStorage.removeItem(WEB3AUTH_REDIRECT_AUTO_CONNECT_KEY)
+
     // Attempt to logout by first connecting a new client and then logging out
     // if connected. It does not attempt to log in if it cannot automatically
     // login from the cached session. This removes the need to keep the client
     // around, which internally keeps a reference to the private key.
     try {
       const { client } = await connectClientAndProvider(
+        this.walletType,
         this.loginProvider,
         this.#options,
         { dontAttemptLogin: true }
