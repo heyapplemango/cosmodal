@@ -110,20 +110,20 @@ export default Home
 
 This component takes the following properties:
 
-| Property                          | Type                                                             | Required | Description                                                                                                                                          |
-| --------------------------------- | ---------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabledWalletTypes`              | `WalletType[]`                                                   | &#x2611; | Wallet types available for connection.                                                                                                               |
-| `walletOptions`                   | `Partial<Record<WalletType, Record<string, any>>> \| undefined`  | &#x2611; | Optional wallet options to be passed to wallet clients.                                                                                              |
-| `defaultChainId`                  | `string`                                                         | &#x2611; | Chain ID to initially connect to and selected by default if nothing is passed to the hook. Must be present in one of the objects in `chainInfoList`. |
-| `chainInfoOverrides`              | `ChainInfoOverrides \| undefined`                                |          | List or getter of additional or replacement ChainInfo objects. These will take precedent over internal definitions by comparing `chainId`.           |
-| `walletConnectClientMeta`         | `IClientMeta`                                                    |          | Descriptive info about the React app which gets displayed when enabling a WalletConnect wallet (e.g. name, image, etc.).                             |
-| `preselectedWalletType`           | `WalletType`                                                     |          | When set to a valid wallet type, the connect function will skip the selection modal and attempt to connect to this wallet immediately.               |
-| `localStorageKey`                 | `string`                                                         |          | localStorage key for saving, loading, and auto connecting to a wallet.                                                                               |
-| `onKeystoreChangeEvent`           | `(event: Event) => unknown`                                      |          | Callback that will be attached as a listener to the `keplr_keystorechange` event on the window object.                                               |
-| `getSigningCosmWasmClientOptions` | `SigningClientGetter<SigningCosmWasmClientOptions> \| undefined` |          | Getter for options passed to SigningCosmWasmClient on connection.                                                                                    |
-| `getSigningStargateClientOptions` | `SigningClientGetter<SigningStargateClientOptions> \| undefined` |          | Getter for options passed to SigningStargateClient on connection.                                                                                    |
-| `defaultUiConfig`                 | `DefaultUiConfig \| undefined`                                   |          | Default UI config.                                                                                                                                   |
-| `CustomUi`                        | `ComponentType<UiProps> \| undefined`                            |          | Custom UI. If present, default UI will not show.                                                                                                     |
+| Property                          | Type                                                | Required | Description                                                                                                                                                                                     |
+| --------------------------------- | --------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabledWalletTypes`              | `WalletType[]`                                      | &#x2611; | Wallet types available for connection.                                                                                                                                                          |
+| `defaultChainId`                  | `string`                                            | &#x2611; | Chain ID to initially connect to and selected by default if nothing is passed to the hook. Must be present in one of the objects in `chainInfoList`.                                            |
+| `walletOptions`                   | `Partial<Record<WalletType, Record<string, any>>>`  |          | Optional wallet options to be passed to wallet clients.                                                                                                                                         |
+| `chainInfoOverrides`              | `ChainInfoOverrides`                                |          | List or getter of additional or replacement ChainInfo objects. These will take precedent over internal definitions by comparing `chainId`.                                                      |
+| `walletConnectClientMeta`         | `IClientMeta`                                       |          | Descriptive info about the React app which gets displayed when enabling a WalletConnect wallet (e.g. name, image, etc.).                                                                        |
+| `preselectedWalletType`           | `WalletType`                                        |          | When set to a valid wallet type, the connect function will skip the selection modal and attempt to connect to this wallet immediately.                                                          |
+| `localStorageKey`                 | `string`                                            |          | localStorage key for saving, loading, and auto connecting to a wallet.                                                                                                                          |
+| `onKeystoreChangeEvent`           | `(event: Event) => unknown`                         |          | Callback that will be attached as a listener to the `keplr_keystorechange` event on the window object.                                                                                          |
+| `getSigningCosmWasmClientOptions` | `SigningClientGetter<SigningCosmWasmClientOptions>` |          | Getter for options passed to SigningCosmWasmClient on connection.                                                                                                                               |
+| `getSigningStargateClientOptions` | `SigningClientGetter<SigningStargateClientOptions>` |          | Getter for options passed to SigningStargateClient on connection.                                                                                                                               |
+| `defaultUiConfig`                 | `DefaultUiConfig`                                   |          | Default UI config.                                                                                                                                                                              |
+| `disableDefaultUi`                | `boolean`                                           |          | Disables the default UI so a custom UI can be built. UI Props can be retrieved from the `useWalletManager` hook's `uiProps` field. It should contain everything necessary to build a custom UI. |
 
 ### useWalletManager
 
@@ -270,6 +270,8 @@ interface IWalletManagerContext {
   // This is passed through from the provider props to allow composition
   // of your own hooks, and for use in the built-in useWallet hook.
   getSigningStargateClientOptions?: SigningClientGetter<SigningStargateClientOptions>
+  // UI Props.
+  uiProps: UiProps
 }
 
 interface WalletManagerProviderProps {
@@ -302,8 +304,8 @@ interface WalletManagerProviderProps {
   getSigningStargateClientOptions?: SigningClientGetter<SigningStargateClientOptions>
   // Default UI config.
   defaultUiConfig?: DefaultUiConfig
-  // Custom UI. If present, default UI will not show.
-  CustomUi?: ComponentType<UiProps>
+  // If true, disable the default UI.
+  disableDefaultUi?: boolean
 }
 
 type DefaultUiConfig = {

@@ -3,7 +3,6 @@ import { SigningStargateClientOptions } from "@cosmjs/stargate"
 import WalletConnect from "@walletconnect/client"
 import { IClientMeta } from "@walletconnect/types"
 import React, {
-  ComponentType,
   FunctionComponent,
   PropsWithChildren,
   useCallback,
@@ -37,13 +36,13 @@ import { WalletManagerContext } from "./WalletManagerContext"
 export type WalletManagerProviderProps = PropsWithChildren<{
   // Wallet types available for connection.
   enabledWalletTypes: WalletType[]
-  // Optional wallet options for each wallet type.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  walletOptions?: Partial<Record<WalletType, Record<string, any>>>
   // Chain ID to initially connect to and selected by default if nothing is
   // passed to the hook. Must be present in one of the objects in
   // `chainInfoList`.
   defaultChainId: string
+  // Optional wallet options for each wallet type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  walletOptions?: Partial<Record<WalletType, Record<string, any>>>
   // List or getter of additional or replacement ChainInfo objects. These will
   // take precedent over internal definitions by comparing `chainId`.
   chainInfoOverrides?: ChainInfoOverrides
@@ -65,8 +64,10 @@ export type WalletManagerProviderProps = PropsWithChildren<{
   getSigningStargateClientOptions?: SigningClientGetter<SigningStargateClientOptions>
   // Default UI config.
   defaultUiConfig?: DefaultUiConfig
-  // Custom UI. If present, default UI will not show.
-  CustomUi?: ComponentType<UiProps>
+  // Disables the default UI so a custom UI can be built. UI Props can be
+  // retrieved from the `useWalletManager` hook's `uiProps` field. It should
+  // contain everything necessary to build a custom UI.
+  disableDefaultUi?: boolean
 }>
 
 export const WalletManagerProvider: FunctionComponent<
@@ -84,7 +85,7 @@ export const WalletManagerProvider: FunctionComponent<
   getSigningCosmWasmClientOptions,
   getSigningStargateClientOptions,
   defaultUiConfig,
-  CustomUi,
+  disableDefaultUi,
 }) => {
   //! STATE
 
@@ -527,6 +528,33 @@ export const WalletManagerProvider: FunctionComponent<
     }
   }, [onKeystoreChangeEvent, connectedWallet, status, connectToWallet])
 
+  const uiProps = useMemo(
+    (): UiProps => ({
+      connectToWallet,
+      connectedWallet,
+      connectingWallet,
+      defaultUiConfig,
+      disconnect,
+      error,
+      reset,
+      status,
+      walletConnectUri,
+      wallets: enabledWallets,
+    }),
+    [
+      connectToWallet,
+      connectedWallet,
+      connectingWallet,
+      defaultUiConfig,
+      disconnect,
+      enabledWallets,
+      error,
+      reset,
+      status,
+      walletConnectUri,
+    ]
+  )
+
   // Memoize context data.
   const value = useMemo(
     () => ({
@@ -540,6 +568,7 @@ export const WalletManagerProvider: FunctionComponent<
       chainInfoOverrides,
       getSigningCosmWasmClientOptions,
       getSigningStargateClientOptions,
+      uiProps,
     }),
     [
       beginConnection,
@@ -551,27 +580,15 @@ export const WalletManagerProvider: FunctionComponent<
       getSigningStargateClientOptions,
       isEmbeddedKeplrMobileWeb,
       status,
+      uiProps,
     ]
   )
-
-  const UI = CustomUi || DefaultUi
 
   return (
     <WalletManagerContext.Provider value={value}>
       {children}
 
-      <UI
-        connectToWallet={connectToWallet}
-        connectedWallet={connectedWallet}
-        connectingWallet={connectingWallet}
-        defaultUiConfig={defaultUiConfig}
-        disconnect={disconnect}
-        error={error}
-        reset={reset}
-        status={status}
-        walletConnectUri={walletConnectUri}
-        wallets={enabledWallets}
-      />
+      {!disableDefaultUi && <DefaultUi {...uiProps} />}
     </WalletManagerContext.Provider>
   )
 }

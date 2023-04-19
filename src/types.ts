@@ -136,6 +136,8 @@ export interface IWalletManagerContext {
   // This is passed through from the provider props to allow composition
   // of your own hooks, and for use in the built-in useWallet hook.
   getSigningStargateClientOptions?: SigningClientGetter<SigningStargateClientOptions>
+  // UI Props.
+  uiProps: UiProps
 }
 
 export interface ModalClassNames {
