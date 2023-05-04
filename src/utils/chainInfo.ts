@@ -1428,9 +1428,9 @@ export const getChainInfo = async (
     // Check overrides for chain info.
     overrides?.find((info) => info.chainId === chainId) ||
     // Use embedded map as fallback.
-    chainId in ChainInfoMap
+    (chainId in ChainInfoMap
       ? ChainInfoMap[chainId as keyof typeof ChainInfoMap]
-      : undefined
+      : undefined)
 
   if (!chainInfo) {
     const availableChainIds = [
