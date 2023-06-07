@@ -1,6 +1,7 @@
-import { OfflineAminoSigner } from "@cosmjs/amino"
+import { OfflineAminoSigner, StdSignature } from "@cosmjs/amino"
 import { fromBech32 } from "@cosmjs/encoding"
 import { OfflineDirectSigner } from "@cosmjs/proto-signing"
+import { makeADR36AminoSignDoc } from "@keplr-wallet/cosmos"
 import { ChainInfo } from "@keplr-wallet/types"
 import eccrypto from "@toruslabs/eccrypto"
 import { LOGIN_PROVIDER_TYPE, OPENLOGIN_NETWORK } from "@toruslabs/openlogin"
@@ -248,6 +249,21 @@ export class Web3AuthClient implements WalletClient {
 
   getOfflineSignerOnlyAmino(chainId: string): OfflineAminoSigner {
     return this.getOfflineSigner(chainId)
+  }
+
+  async signArbitrary(
+    chainId: string,
+    signer: string,
+    data: string | Uint8Array
+  ): Promise<StdSignature> {
+    // ADR 036
+    // https://docs.cosmos.network/v0.47/architecture/adr-036-arbitrary-signature
+    const signDoc = makeADR36AminoSignDoc(signer, data)
+
+    const offlineSigner = await this.getOfflineSignerOnlyAmino(chainId)
+    const { signature } = await offlineSigner.signAmino(signer, signDoc)
+
+    return signature
   }
 
   async getKey(chainId: string): Promise<{

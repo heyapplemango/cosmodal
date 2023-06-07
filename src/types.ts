@@ -21,6 +21,7 @@ export type WalletClient = Pick<
   | "getOfflineSigner"
   | "getOfflineSignerAuto"
   | "getOfflineSignerOnlyAmino"
+  | "signArbitrary"
 > &
   Partial<Pick<Keplr, "mode" | "experimentalSuggestChain">> & {
     getKey: (chainId: string) => Promise<{
