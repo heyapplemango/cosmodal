@@ -23,17 +23,11 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
     walletConnectClientMeta={{
       name: "CosmodalExampleDApp",
       description: "A dApp using the @noahsaso/cosmodal library.",
-      url: "https://cosmodal-noahsaso.vercel.app/",
+      url: "http://192.168.200.20:3001",
       icons: ["https://moonphase.is/image.svg"],
     }}
     enabledWalletTypes={[
-      WalletType.Leap,
-      WalletType.Keplr,
       WalletType.KeplrMobile,
-      WalletType.Google,
-      WalletType.Apple,
-      WalletType.Discord,
-      WalletType.Twitter,
     ]}
     defaultUiConfig={{
       renderLoader: () => <p>Loading...</p>,
@@ -50,19 +44,13 @@ const MyApp: FunctionComponent<AppProps> = ({ Component, pageProps }) => (
         "0.0025" + chainInfo.feeCurrencies[0].coinMinimalDenom
       ),
     })}
-    walletOptions={{
-      [WalletType.Google]: web3AuthWalletOptions,
-      [WalletType.Apple]: web3AuthWalletOptions,
-      [WalletType.Discord]: web3AuthWalletOptions,
-      [WalletType.Twitter]: web3AuthWalletOptions,
-    }}
-    // Choose a different RPC node for the desired chain.
-    // chainInfoOverrides={[
-    //   {
-    //     ...ChainInfoMap[ChainInfoID.Juno1],
-    //     rpc: "https://another.rpc.com",
-    //   }
-    // ]}
+  // Choose a different RPC node for the desired chain.
+  // chainInfoOverrides={[
+  //   {
+  //     ...ChainInfoMap[ChainInfoID.Juno1],
+  //     rpc: "https://another.rpc.com",
+  //   }
+  // ]}
   >
     <Component {...pageProps} />
   </WalletManagerProvider>
